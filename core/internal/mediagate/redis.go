@@ -26,3 +26,5 @@ return next
 func(r RedisCache)GetMediaOwner(ctx context.Context,id string)(string,error){v,e:=r.Client.Get(ctx,"matrix:media:owner:"+id).Result();if e==redis.Nil{return "",nil};return v,e}
 func(r RedisCache)SetMediaOwner(ctx context.Context,id,user string,t time.Duration)error{return r.Client.Set(ctx,"matrix:media:owner:"+id,user,t).Err()}
 func(r RedisCache)DeleteMediaOwner(ctx context.Context,id string)error{return r.Client.Del(ctx,"matrix:media:owner:"+id).Err()}
+
+func(r RedisCache)InvalidateUserUsage(ctx context.Context,userID string)error{pattern:="matrix:media:usage:"+userID+":*";iter:=r.Client.Scan(ctx,0,pattern,100).Iterator();keys:=make([]string,0,100);flush:=func()error{if len(keys)==0{return nil};err:=r.Client.Del(ctx,keys...).Err();keys=keys[:0];return err};for iter.Next(ctx){keys=append(keys,iter.Val());if len(keys)>=100{if err:=flush();err!=nil{return err}}};if err:=iter.Err();err!=nil{return err};return flush()}
