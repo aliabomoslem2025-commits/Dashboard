@@ -19,7 +19,7 @@ const vuetify = createVuetify({
 })
 createInertiaApp({
  resolve: async name => {
-  const page:any = await resolvePageComponent(\`./Pages/\${name}.vue\`, import.meta.glob('./Pages/**/*.vue'))
+  const page:any = await resolvePageComponent('./Pages/' + name + '.vue', import.meta.glob('./Pages/**/*.vue'))
   page.default.layout ??= AppLayout
   return page
  },
