@@ -1,5 +1,6 @@
 <?php
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\BroadcastController;
@@ -42,6 +43,7 @@ Route::middleware(['auth','can:view-dashboard'])->group(function(){
  Route::put('/activity/thresholds',[ActivityController::class,'updateThresholds'])->name('activity.thresholds');
  Route::get('/metrics',[MetricsController::class,'index'])->name('metrics.index');
  Route::put('/metrics/thresholds',[MetricsController::class,'updateThresholds'])->name('metrics.thresholds');
+ Route::get('/audit-logs',[AuditLogController::class,'index'])->name('audit.index');
  Route::get('/broadcasts',[BroadcastController::class,'index'])->name('broadcasts.index');
  Route::post('/broadcasts',[BroadcastController::class,'store'])->name('broadcasts.store');
  Route::get('/broadcasts/{id}',[BroadcastController::class,'show'])->name('broadcasts.show');
