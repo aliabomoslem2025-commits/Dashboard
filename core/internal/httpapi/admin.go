@@ -20,7 +20,7 @@ func(h *Handler)registerAdminRoutes(r chi.Router){
  r.Get("/api/v1/users/{userID}/whois",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodGet,"/_synapse/admin/v1/whois/"+segment(chi.URLParam(q,"userID")))})
  r.Get("/api/v1/users/{userID}/media",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodGet,"/_synapse/admin/v1/users/"+segment(chi.URLParam(q,"userID"))+"/media")})
  r.Get("/api/v1/users/{userID}/media-usage",h.mediaUsage)
- r.Delete("/api/v1/users/{userID}/media",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodDelete,"/_synapse/admin/v1/users/"+segment(chi.URLParam(q,"userID"))+"/media")})
+ r.Delete("/api/v1/users/{userID}/media",h.deleteUserMedia)
  r.Get("/api/v1/rooms",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodGet,"/_synapse/admin/v1/rooms")})
  r.Get("/api/v1/rooms/{roomID}",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodGet,"/_synapse/admin/v1/rooms/"+segment(chi.URLParam(q,"roomID")))})
  r.Get("/api/v1/rooms/{roomID}/members",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodGet,"/_synapse/admin/v1/rooms/"+segment(chi.URLParam(q,"roomID"))+"/members")})
