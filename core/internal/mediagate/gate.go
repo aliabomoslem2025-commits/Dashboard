@@ -12,10 +12,10 @@ func matrixError(w http.ResponseWriter,status int,code,msg string){w.Header().Se
 func(g *Gate)ServeHTTP(w http.ResponseWriter,r *http.Request){
  if !isUpload(r.URL.Path){g.proxy.ServeHTTP(w,r);return}
  token:=strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"),"Bearer "));if token==""{token=r.URL.Query().Get("access_token")};if token==""{matrixError(w,401,"M_MISSING_TOKEN","Missing access token");return}
- if r.ContentLength<0{matrixError(w,411,"M_UNKNOWN","Content-Length is required for quota enforcement");return}
  sum:=sha256.Sum256([]byte(token));tokenKey:=hex.EncodeToString(sum[:]);ctx,cancel:=context.WithTimeout(r.Context(),8*time.Second);defer cancel()
  userID,err:=g.cache.GetUser(ctx,tokenKey);if err!=nil||userID==""{userID,err=g.resolver.WhoAmI(ctx,token);if err!=nil{matrixError(w,401,"M_UNKNOWN_TOKEN","Invalid or expired access token");return};_=g.cache.SetUser(ctx,tokenKey,userID,60*time.Second)}
  quota,err:=g.quotas.GetQuota(ctx,userID);if err!=nil{matrixError(w,503,"M_UNKNOWN","Unable to read media quota");return};if quota==nil{g.proxy.ServeHTTP(w,r);return}
+ if r.ContentLength<0{matrixError(w,411,"M_UNKNOWN","Content-Length is required for quota enforcement");return}
  if quota.MaxFileBytes>0&&r.ContentLength>quota.MaxFileBytes{matrixError(w,413,"M_TOO_LARGE","Upload exceeds the per-file media quota");return}
  usageKey:=""
  if quota.MaxTotalBytes>0{start:=periodStart(quota.Period,time.Now());usageKey=userID+":"+strconv.FormatInt(start.Unix(),10);used,ok,e:=g.cache.GetUsage(ctx,usageKey);if e!=nil{matrixError(w,503,"M_UNKNOWN","Unable to read media usage");return};if !ok{used,e=g.resolver.MediaBytesSince(ctx,userID,start);if e!=nil{matrixError(w,502,"M_UNKNOWN","Unable to calculate current media usage");return};_=g.cache.SetUsage(ctx,usageKey,used,2*time.Minute)};if used+r.ContentLength>quota.MaxTotalBytes{matrixError(w,413,"M_TOO_LARGE","Upload would exceed the total media quota");return}}
@@ -25,3 +25,5 @@ func(g *Gate)ServeHTTP(w http.ResponseWriter,r *http.Request){
 }
 type statusRecorder struct{http.ResponseWriter;status int}
 func(s *statusRecorder)WriteHeader(code int){s.status=code;s.ResponseWriter.WriteHeader(code)}
+func(s *statusRecorder)Flush(){if f,ok:=s.ResponseWriter.(http.Flusher);ok{f.Flush()}}
+func(s *statusRecorder)Unwrap()http.ResponseWriter{return s.ResponseWriter}
