@@ -1,9 +1,30 @@
 <?php
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ServerController;
+use App\Http\Controllers\SynapseRoomController;
+use App\Http\Controllers\SynapseUserController;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 Route::middleware('guest')->group(function(){Route::get('/login',[AuthController::class,'create'])->name('login');Route::post('/login',[AuthController::class,'store'])->name('login.store');});
 Route::post('/logout',[AuthController::class,'destroy'])->middleware('auth')->name('logout');
-Route::middleware(['auth','can:view-dashboard'])->group(function(){Route::get('/',fn()=>Inertia::render('Dashboard'))->name('dashboard');Route::get('/health/core',function(){$response=Http::withToken(config('services.core.token'))->timeout(5)->get(rtrim(config('services.core.url'),'/').'/health');return Inertia::render('CoreHealth',['core'=>$response->json(),'reachable'=>$response->successful()]);})->name('core.health');Route::get('/server',[ServerController::class,'show'])->name('server.show');});
+Route::middleware(['auth','can:view-dashboard'])->group(function(){
+ Route::get('/',fn()=>Inertia::render('Dashboard'))->name('dashboard');
+ Route::get('/health/core',function(){$response=Http::withToken(config('services.core.token'))->timeout(5)->get(rtrim(config('services.core.url'),'/').'/health');return Inertia::render('CoreHealth',['core'=>$response->json(),'reachable'=>$response->successful()]);})->name('core.health');
+ Route::get('/server',[ServerController::class,'show'])->name('server.show');
+ Route::get('/users',[SynapseUserController::class,'index'])->name('users.index');
+ Route::get('/users/{userID}',[SynapseUserController::class,'show'])->name('users.show');
+ Route::put('/users/{userID}',[SynapseUserController::class,'update'])->name('users.update');
+ Route::post('/users/{userID}/reset-password',[SynapseUserController::class,'resetPassword'])->name('users.reset-password');
+ Route::post('/users/{userID}/deactivate',[SynapseUserController::class,'deactivate'])->name('users.deactivate');
+ Route::put('/users/{userID}/suspend',[SynapseUserController::class,'suspend'])->name('users.suspend');
+ Route::post('/users/{userID}/shadow-ban',[SynapseUserController::class,'shadowBan'])->name('users.shadow-ban');
+ Route::post('/users/{userID}/ratelimit',[SynapseUserController::class,'ratelimit'])->name('users.ratelimit');
+ Route::delete('/users/{userID}/devices/{deviceID}',[SynapseUserController::class,'deleteDevice'])->name('users.devices.delete');
+ Route::delete('/users/{userID}/media',[SynapseUserController::class,'deleteMedia'])->name('users.media.delete');
+ Route::get('/rooms',[SynapseRoomController::class,'index'])->name('rooms.index');
+ Route::get('/rooms/{roomID}',[SynapseRoomController::class,'show'])->name('rooms.show');
+ Route::put('/rooms/{roomID}/block',[SynapseRoomController::class,'block'])->name('rooms.block');
+ Route::post('/rooms/{roomID}/make-admin',[SynapseRoomController::class,'makeAdmin'])->name('rooms.make-admin');
+ Route::delete('/rooms/{roomID}',[SynapseRoomController::class,'delete'])->name('rooms.delete');
+});
