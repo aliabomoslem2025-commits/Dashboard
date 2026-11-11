@@ -17,7 +17,7 @@ func main(){
  redisClient:=redis.NewClient(&redis.Options{Addr:cfg.RedisAddr,Password:os.Getenv("REDIS_PASSWORD"),DB:0});if err=redisClient.Ping(ctx).Err();err!=nil{log.Fatal().Err(err).Msg("Redis unavailable")};defer redisClient.Close()
  target,err:=url.Parse(cfg.SynapseBaseURL);if err!=nil{log.Fatal().Err(err).Msg("invalid Synapse URL")}
  gate:=mediagate.New(target,mediagate.PostgresQuotas{Pool:pool},mediagate.RedisCache{Client:redisClient},client)
- router:=chi.NewRouter();router.Get("/health",h.Health);router.Group(func(r chi.Router){r.Use(h.Authenticate);r.Get("/api/v1/server/version",h.ServerVersion);r.Get("/api/v1/metrics/current",h.MetricsCurrent);r.Get("/api/v1/metrics/stream",h.MetricsStream);h.registerAdminRoutes(r)})
+ router:=chi.NewRouter();router.Get("/health",h.Health);router.Group(func(r chi.Router){r.Use(h.Authenticate);r.Get("/api/v1/server/version",h.ServerVersion);r.Get("/api/v1/metrics/current",h.MetricsCurrent);r.Get("/api/v1/metrics/stream",h.MetricsStream);h.RegisterAdminRoutes(r)})
  jobCtx,cancelJobs:=context.WithCancel(context.Background());defer cancelJobs()
  var synapseDB *pgxpool.Pool
  if synapseDSN:=os.Getenv("SYNAPSE_DB_URL");synapseDSN!=""{synapseDB,err=pgxpool.New(jobCtx,synapseDSN);if err!=nil{logger.Warn().Err(err).Msg("Synapse read-only DB configuration invalid; message counts disabled")}else if err=synapseDB.Ping(jobCtx);err!=nil{logger.Warn().Err(err).Msg("Synapse DB unavailable; message counts disabled");synapseDB.Close();synapseDB=nil}else{defer synapseDB.Close()}}

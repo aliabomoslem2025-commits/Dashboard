@@ -15,7 +15,7 @@ func TestUserListUsesSynapseV2AdminPath(t *testing.T){
  defer upstream.Close()
  client:=synapse.New(upstream.URL,"synapse-admin",time.Second)
  h:=New(client,"core-token",zerolog.Nop())
- router:=chi.NewRouter();router.Group(func(r chi.Router){r.Use(h.Authenticate);h.registerAdminRoutes(r)})
+ router:=chi.NewRouter();router.Group(func(r chi.Router){r.Use(h.Authenticate);h.RegisterAdminRoutes(r)})
  req:=httptest.NewRequest(http.MethodGet,"/api/v1/users?limit=25",nil);req.Header.Set("Authorization","Bearer core-token")
  rec:=httptest.NewRecorder();router.ServeHTTP(rec,req)
  if rec.Code!=200{t.Fatalf("expected 200, got %d: %s",rec.Code,rec.Body.String())}
@@ -27,3 +27,5 @@ func TestAdminProxyRequiresCoreServiceToken(t *testing.T){
  rec:=httptest.NewRecorder();router.ServeHTTP(rec,req)
  if rec.Code!=401{t.Fatalf("expected 401, got %d",rec.Code)}
 }
+
+func TestUserListRejectsInvalidPaginationAndFilters(t *testing.T){client:=synapse.New("http://127.0.0.1:9","admin",time.Second);h:=New(client,"core-token",zerolog.Nop());router:=chi.NewRouter();router.Group(func(r chi.Router){r.Use(h.Authenticate);h.RegisterAdminRoutes(r)});req:=httptest.NewRequest(http.MethodGet,"/api/v1/users?limit=9999&locked=maybe",nil);req.Header.Set("Authorization","Bearer core-token");rec:=httptest.NewRecorder();router.ServeHTTP(rec,req);if rec.Code!=400{t.Fatalf("expected 400, got %d: %s",rec.Code,rec.Body.String())}}
