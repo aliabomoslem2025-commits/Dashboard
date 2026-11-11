@@ -34,5 +34,6 @@ Route::middleware(['auth','can:view-dashboard'])->group(function () {
  Route::get('/rooms/{roomID}',[SynapseRoomController::class,'show'])->name('rooms.show');
  Route::put('/rooms/{roomID}/block',[SynapseRoomController::class,'block'])->name('rooms.block');
  Route::post('/rooms/{roomID}/make-admin',[SynapseRoomController::class,'makeAdmin'])->name('rooms.make-admin');
+ Route::post('/rooms/{roomID}/read-only',[SynapseRoomController::class,'readOnly'])->name('rooms.read-only');
  Route::delete('/rooms/{roomID}',[SynapseRoomController::class,'delete'])->name('rooms.delete');
 });
