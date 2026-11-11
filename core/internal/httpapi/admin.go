@@ -57,4 +57,5 @@ func (h *Handler) registerAdminRoutes(r chi.Router) {
  r.Put("/api/v1/rooms/{roomID}/block",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodPut,"/_synapse/admin/v1/rooms/"+segment(chi.URLParam(q,"roomID"))+"/block")})
  r.Delete("/api/v1/rooms/{roomID}",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodDelete,"/_synapse/admin/v2/rooms/"+segment(chi.URLParam(q,"roomID")))})
  r.Post("/api/v1/rooms/{roomID}/make-admin",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodPost,"/_synapse/admin/v1/rooms/"+segment(chi.URLParam(q,"roomID"))+"/make_room_admin")})
+ r.Post("/api/v1/rooms/{roomID}/read-only",h.roomReadOnly)
 }
