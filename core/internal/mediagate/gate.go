@@ -4,7 +4,7 @@ import(
 )
 type Quota struct{MaxTotalBytes int64;MaxFileBytes int64;Period string}
 type QuotaRepository interface{GetQuota(context.Context,string)(*Quota,error)}
-type Cache interface{GetUser(context.Context,string)(string,error);SetUser(context.Context,string,string,time.Duration)error;GetUsage(context.Context,string)(int64,bool,error);SetUsage(context.Context,string,int64,time.Duration)error;AddUsage(context.Context,string,int64)error;GetMediaOwner(context.Context,string)(string,error);SetMediaOwner(context.Context,string,string,time.Duration)error;DeleteMediaOwner(context.Context,string)error}
+type Cache interface{GetUser(context.Context,string)(string,error);SetUser(context.Context,string,string,time.Duration)error;GetUsage(context.Context,string)(int64,bool,error);SetUsage(context.Context,string,int64,time.Duration)error;AddUsage(context.Context,string,int64)error;ReserveUsage(context.Context,string,int64,int64)(bool,error);ReleaseUsage(context.Context,string,int64)error;GetMediaOwner(context.Context,string)(string,error);SetMediaOwner(context.Context,string,string,time.Duration)error;DeleteMediaOwner(context.Context,string)error}
 type Resolver interface{WhoAmI(context.Context,string)(string,error);MediaBytesSince(context.Context,string,time.Time)(int64,error)}
 type ownerContextKey struct{}
 type Gate struct{proxy *httputil.ReverseProxy;quotas QuotaRepository;cache Cache;resolver Resolver}
@@ -27,11 +27,15 @@ func(g *Gate)enforce(w http.ResponseWriter,r *http.Request,user string,create bo
  if !create&&r.ContentLength<0{matrixError(w,411,"M_UNKNOWN","Content-Length is required for quota enforcement");return}
  if !create&&quota.MaxFileBytes>0&&r.ContentLength>quota.MaxFileBytes{matrixError(w,413,"M_TOO_LARGE","Upload exceeds the per-file media quota");return}
  usageKey,used,err:=g.usageKey(quota,user);if err!=nil{matrixError(w,502,"M_UNKNOWN","Unable to calculate current media usage");return}
- if quota.MaxTotalBytes>0&&(used>=quota.MaxTotalBytes||(!create&&used+r.ContentLength>quota.MaxTotalBytes)){matrixError(w,413,"M_TOO_LARGE","Upload would exceed the total media quota");return}
+ reserved:=false
+ if quota.MaxTotalBytes>0{
+  if create&&used>=quota.MaxTotalBytes{matrixError(w,413,"M_TOO_LARGE","User media quota is already exhausted");return}
+  if !create{allowed,e:=g.cache.ReserveUsage(ctx,usageKey,r.ContentLength,quota.MaxTotalBytes);if e!=nil{matrixError(w,503,"M_UNKNOWN","Unable to reserve media quota");return};if !allowed{matrixError(w,413,"M_TOO_LARGE","Upload would exceed the total media quota");return};reserved=true}
+ }
  if create{r=r.WithContext(context.WithValue(r.Context(),ownerContextKey{},user));g.proxy.ServeHTTP(w,r);return}
  max:=quota.MaxFileBytes;if max<=0{max=r.ContentLength};r.Body=http.MaxBytesReader(w,r.Body,max)
  recorder:=&statusRecorder{ResponseWriter:w,status:200};g.proxy.ServeHTTP(recorder,r)
- if recorder.status>=200&&recorder.status<300&&usageKey!=""{_=g.cache.AddUsage(context.Background(),usageKey,r.ContentLength)}
+ if reserved&&!(recorder.status>=200&&recorder.status<300){_=g.cache.ReleaseUsage(context.Background(),usageKey,r.ContentLength)}
  if recorder.status>=200&&recorder.status<300&&mediaID!=""{_=g.cache.DeleteMediaOwner(context.Background(),mediaID)}
 }
 func(g *Gate)ServeHTTP(w http.ResponseWriter,r *http.Request){
