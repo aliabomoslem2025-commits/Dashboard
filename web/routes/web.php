@@ -18,11 +18,11 @@ Route::middleware(['auth','can:view-dashboard'])->group(function(){
  Route::post('/users/{userID}/reset-password',[SynapseUserController::class,'resetPassword'])->name('users.reset-password');
  Route::post('/users/{userID}/deactivate',[SynapseUserController::class,'deactivate'])->name('users.deactivate');
  Route::put('/users/{userID}/suspend',[SynapseUserController::class,'suspend'])->name('users.suspend');
- Route::post('/users/{userID}/shadow-ban',[SynapseUserController::class,'shadowBan'])->name('users.shadow-ban');
+ Route::post('/users/{userID}/shadow-ban',[SynapseUserController::class,'shadowBan'])->name('users.shadow-ban');\n Route::delete('/users/{userID}/shadow-ban',[SynapseUserController::class,'shadowBan'])->name('users.shadow-unban');
  Route::post('/users/{userID}/ratelimit',[SynapseUserController::class,'ratelimit'])->name('users.ratelimit');
  Route::delete('/users/{userID}/devices/{deviceID}',[SynapseUserController::class,'deleteDevice'])->name('users.devices.delete');
  Route::delete('/users/{userID}/media',[SynapseUserController::class,'deleteMedia'])->name('users.media.delete');
- Route::get('/rooms',[SynapseRoomController::class,'index'])->name('rooms.index');
+ Route::get('/media',[QuotaController::class,'index'])->name('media.index');\n Route::post('/media/quotas',[QuotaController::class,'store'])->name('media.quotas.store');\n Route::delete('/media/quotas/{userID}',[QuotaController::class,'destroy'])->name('media.quotas.destroy');\n Route::get('/rooms',[SynapseRoomController::class,'index'])->name('rooms.index');
  Route::get('/rooms/{roomID}',[SynapseRoomController::class,'show'])->name('rooms.show');
  Route::put('/rooms/{roomID}/block',[SynapseRoomController::class,'block'])->name('rooms.block');
  Route::post('/rooms/{roomID}/make-admin',[SynapseRoomController::class,'makeAdmin'])->name('rooms.make-admin');
