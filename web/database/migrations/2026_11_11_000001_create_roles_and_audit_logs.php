@@ -1,0 +1,5 @@
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration { public function up(): void { Schema::create('roles',function(Blueprint $t){$t->id();$t->string('name')->unique();$t->string('label');$t->timestamps();});Schema::create('role_user',function(Blueprint $t){$t->foreignId('role_id')->constrained()->cascadeOnDelete();$t->foreignId('user_id')->constrained()->cascadeOnDelete();$t->primary(['role_id','user_id']);});Schema::create('audit_logs',function(Blueprint $t){$t->id();$t->foreignId('user_id')->nullable()->constrained()->nullOnDelete();$t->string('action');$t->string('target_type')->nullable();$t->string('target_id')->nullable();$t->jsonb('payload')->nullable();$t->ipAddress('ip_address')->nullable();$t->timestampTz('created_at')->useCurrent();$t->index(['target_type','target_id']);}); } public function down(): void {Schema::dropIfExists('audit_logs');Schema::dropIfExists('role_user');Schema::dropIfExists('roles');} };
