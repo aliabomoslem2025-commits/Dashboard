@@ -4,7 +4,7 @@ func TestMediaGateWithRedisAndSynapseUpstream(t *testing.T){
  addr:=os.Getenv("REDIS_TEST_ADDR");if addr==""{t.Skip("REDIS_TEST_ADDR is not configured")}
  ctx:=context.Background();client:=redis.NewClient(&redis.Options{Addr:addr});defer client.Close();if err:=client.FlushDB(ctx).Err();err!=nil{t.Fatal(err)}
  cache:=RedisCache{Client:client};var forwarded atomic.Int32
- upstream:=httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){forwarded.Add(1);_,_=w.Write([]byte(\`{"content_uri":"mxc://example.org/uploaded"}\`))}));defer upstream.Close()
+ upstream:=httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){forwarded.Add(1);_,_=w.Write([]byte(`{"content_uri":"mxc://example.org/uploaded"}`))}));defer upstream.Close()
  target,_:=url.Parse(upstream.URL);gate:=New(target,fakeQuota{&Quota{MaxTotalBytes:100,MaxFileBytes:50,Period:"lifetime"}},cache,fakeResolver{})
  upload:=func(body string) *httptest.ResponseRecorder {req:=httptest.NewRequest(http.MethodPost,"/_matrix/media/v3/upload",strings.NewReader(body));req.Header.Set("Authorization","Bearer integration-token");req.ContentLength=int64(len(body));rec:=httptest.NewRecorder();gate.ServeHTTP(rec,req);return rec}
  first:=upload("12345");if first.Code!=200{t.Fatalf("first upload should pass, got %d: %s",first.Code,first.Body.String())}
