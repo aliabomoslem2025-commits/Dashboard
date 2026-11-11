@@ -21,5 +21,5 @@ func TestSetRoomReadOnlyJoinsAdminBeforeApplyingPowerLevels(t *testing.T){
  }))
  defer srv.Close();client:=New(srv.URL,"admin-token",time.Second)
  if err:=client.SetRoomReadOnly(context.Background(),"!r:hs");err!=nil{t.Fatal(err)}
- if len(calls)!=4{t.Fatalf("expected state, make-admin, join, make-admin, power-level sequence; got %#v",calls)}
+ if len(calls)!=5{t.Fatalf("expected state, make-admin, join, make-admin, power-level sequence; got %#v",calls)}
 }
