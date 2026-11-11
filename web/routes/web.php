@@ -41,6 +41,7 @@ Route::middleware(['auth','can:view-dashboard'])->group(function(){
  Route::delete('/rooms/{roomID}',[SynapseRoomController::class,'delete'])->name('rooms.delete');
  Route::get('/activity',[ActivityController::class,'index'])->name('activity.index');
  Route::put('/activity/thresholds',[ActivityController::class,'updateThresholds'])->name('activity.thresholds');
+ Route::get('/metrics/stream',[MetricsController::class,'stream'])->name('metrics.stream');
  Route::get('/metrics',[MetricsController::class,'index'])->name('metrics.index');
  Route::put('/metrics/thresholds',[MetricsController::class,'updateThresholds'])->name('metrics.thresholds');
  Route::get('/audit-logs',[AuditLogController::class,'index'])->name('audit.index');
