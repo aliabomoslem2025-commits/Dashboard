@@ -1,0 +1,16 @@
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration {
+ public function up(): void {
+  Schema::create('user_activity',function(Blueprint $t){$t->string('user_id')->primary();$t->timestampTz('last_seen_at')->nullable();$t->unsignedBigInteger('message_count')->default(0);$t->unsignedBigInteger('media_bytes')->default(0);$t->string('category',24)->default('dormant')->index();$t->timestampTz('collected_at')->useCurrent();});
+  Schema::create('activity_thresholds',function(Blueprint $t){$t->id();$t->unsignedBigInteger('heavy_min_messages')->default(1000);$t->unsignedBigInteger('active_min_messages')->default(100);$t->unsignedBigInteger('low_active_min_messages')->default(10);$t->unsignedInteger('dormant_days')->default(30);$t->unsignedInteger('suspicious_new_account_days')->default(1);$t->unsignedBigInteger('suspicious_messages_per_hour')->default(5000);$t->foreignId('updated_by')->nullable()->constrained('users')->nullOnDelete();$t->timestamps();});
+  Schema::create('activity_history',function(Blueprint $t){$t->id();$t->timestampTz('sampled_at')->index();$t->string('category',24);$t->unsignedBigInteger('users_count');});
+  Schema::create('system_metrics',function(Blueprint $t){$t->id();$t->timestampTz('sampled_at')->index();$t->decimal('cpu_percent',6,2)->nullable();$t->unsignedBigInteger('ram_used_bytes')->nullable();$t->unsignedBigInteger('ram_total_bytes')->nullable();$t->unsignedBigInteger('disk_used_bytes')->nullable();$t->unsignedBigInteger('disk_total_bytes')->nullable();$t->unsignedBigInteger('database_bytes')->nullable();$t->unsignedBigInteger('users_total')->nullable();$t->unsignedBigInteger('rooms_total')->nullable();$t->unsignedBigInteger('online_users')->nullable();$t->jsonb('prometheus')->nullable();});
+  Schema::create('metric_thresholds',function(Blueprint $t){$t->id();$t->string('name')->unique();$t->decimal('value',12,2);$t->timestamps();});
+  Schema::create('broadcasts',function(Blueprint $t){$t->id();$t->text('message');$t->string('msgtype',32)->default('m.text');$t->string('audience',24);$t->string('activity_category',24)->nullable();$t->unsignedInteger('throttle_ms')->default(500);$t->unsignedSmallInteger('max_retries')->default(3);$t->string('status',24)->default('queued')->index();$t->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();$t->timestampTz('started_at')->nullable();$t->timestampTz('completed_at')->nullable();$t->timestamps();});
+  Schema::create('broadcast_recipients',function(Blueprint $t){$t->id();$t->foreignId('broadcast_id')->constrained()->cascadeOnDelete();$t->string('user_id');$t->string('status',24)->default('pending')->index();$t->unsignedSmallInteger('attempts')->default(0);$t->string('event_id')->nullable();$t->text('error')->nullable();$t->timestampTz('sent_at')->nullable();$t->timestamps();$t->unique(['broadcast_id','user_id']);$t->index(['broadcast_id','status']);});
+ }
+ public function down(): void {Schema::dropIfExists('broadcast_recipients');Schema::dropIfExists('broadcasts');Schema::dropIfExists('metric_thresholds');Schema::dropIfExists('system_metrics');Schema::dropIfExists('activity_history');Schema::dropIfExists('activity_thresholds');Schema::dropIfExists('user_activity');}
+};
