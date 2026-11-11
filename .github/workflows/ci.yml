@@ -56,3 +56,18 @@ jobs:
         run: |
           php -l artisan
           find app bootstrap config database public routes -name '*.php' -print0 | xargs -0 -n1 php -l
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare CI environment
+        run: |
+          cp .env.example .env
+          sed -i 's/^APP_KEY=.*/APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=/' .env
+          sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=ci-dashboard-password/' .env
+          sed -i 's/^CORE_SERVICE_TOKEN=.*/CORE_SERVICE_TOKEN=ci-core-service-token/' .env
+      - name: Validate Docker Compose
+        run: docker compose config --quiet
+      - name: Build containers
+        run: docker compose build --pull
