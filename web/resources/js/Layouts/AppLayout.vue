@@ -19,7 +19,7 @@ const logout=()=>router.post('/logout')
 :deep(.v-card){transition:box-shadow .22s ease,transform .22s ease}
 :deep(.v-card:hover){transform:translateY(-1px)}
 :deep(svg polyline){transition:all .35s ease}
-@media(prefers-reduced-motion:reduce){:deep(.v-card),:deep(svg polyline){transition:none}:deep(.v-card:hover){transform:none}}
+@media(prefers-reduced-motion:reduce){:deep(.v-card),:deep(svg polyline){transition:none}:deep(.v-card:hover){transform:none}:deep(*),:deep(*::before),:deep(*::after){animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 </style>
     <v-list density="compact"><v-list-item v-for="link in links" :key="link.href" :title="link.title" :href="link.href"/></v-list>
    </v-menu>
