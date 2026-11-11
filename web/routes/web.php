@@ -1,5 +1,8 @@
 <?php
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ActivityController;
+use App\Http\Controllers\BroadcastController;
+use App\Http\Controllers\MetricsController;
 use App\Http\Controllers\QuotaController;
 use App\Http\Controllers\ServerController;
 use App\Http\Controllers\SynapseRoomController;
@@ -7,14 +10,11 @@ use App\Http\Controllers\SynapseUserController;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-Route::middleware('guest')->group(function () {
- Route::get('/login',[AuthController::class,'create'])->name('login');
- Route::post('/login',[AuthController::class,'store'])->name('login.store');
-});
+Route::middleware('guest')->group(function(){Route::get('/login',[AuthController::class,'create'])->name('login');Route::post('/login',[AuthController::class,'store'])->name('login.store');});
 Route::post('/logout',[AuthController::class,'destroy'])->middleware('auth')->name('logout');
-Route::middleware(['auth','can:view-dashboard'])->group(function () {
+Route::middleware(['auth','can:view-dashboard'])->group(function(){
  Route::get('/',fn()=>Inertia::render('Dashboard'))->name('dashboard');
- Route::get('/health/core',function(){ $response=Http::withToken(config('services.core.token'))->timeout(5)->get(rtrim(config('services.core.url'),'/').'/health'); return Inertia::render('CoreHealth',['core'=>$response->json(),'reachable'=>$response->successful()]); })->name('core.health');
+ Route::get('/health/core',function(){$response=Http::withToken(config('services.core.token'))->timeout(5)->get(rtrim(config('services.core.url'),'/').'/health');return Inertia::render('CoreHealth',['core'=>$response->json(),'reachable'=>$response->successful()]);})->name('core.health');
  Route::get('/server',[ServerController::class,'show'])->name('server.show');
  Route::get('/users',[SynapseUserController::class,'index'])->name('users.index');
  Route::get('/users/{userID}',[SynapseUserController::class,'show'])->name('users.show');
@@ -36,4 +36,11 @@ Route::middleware(['auth','can:view-dashboard'])->group(function () {
  Route::post('/rooms/{roomID}/make-admin',[SynapseRoomController::class,'makeAdmin'])->name('rooms.make-admin');
  Route::post('/rooms/{roomID}/read-only',[SynapseRoomController::class,'readOnly'])->name('rooms.read-only');
  Route::delete('/rooms/{roomID}',[SynapseRoomController::class,'delete'])->name('rooms.delete');
+ Route::get('/activity',[ActivityController::class,'index'])->name('activity.index');
+ Route::put('/activity/thresholds',[ActivityController::class,'updateThresholds'])->name('activity.thresholds');
+ Route::get('/metrics',[MetricsController::class,'index'])->name('metrics.index');
+ Route::put('/metrics/thresholds',[MetricsController::class,'updateThresholds'])->name('metrics.thresholds');
+ Route::get('/broadcasts',[BroadcastController::class,'index'])->name('broadcasts.index');
+ Route::post('/broadcasts',[BroadcastController::class,'store'])->name('broadcasts.store');
+ Route::get('/broadcasts/{id}',[BroadcastController::class,'show'])->name('broadcasts.show');
 });
