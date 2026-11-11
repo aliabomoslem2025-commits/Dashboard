@@ -17,6 +17,7 @@ Route::middleware(['auth','can:view-dashboard'])->group(function(){
  Route::get('/health/core',function(){$response=Http::withToken(config('services.core.token'))->timeout(5)->get(rtrim(config('services.core.url'),'/').'/health');return Inertia::render('CoreHealth',['core'=>$response->json(),'reachable'=>$response->successful()]);})->name('core.health');
  Route::get('/server',[ServerController::class,'show'])->name('server.show');
  Route::get('/users',[SynapseUserController::class,'index'])->name('users.index');
+ Route::post('/users',[SynapseUserController::class,'store'])->name('users.store');
  Route::get('/users/{userID}',[SynapseUserController::class,'show'])->name('users.show');
  Route::put('/users/{userID}',[SynapseUserController::class,'update'])->name('users.update');
  Route::post('/users/{userID}/reset-password',[SynapseUserController::class,'resetPassword'])->name('users.reset-password');
