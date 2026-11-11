@@ -23,7 +23,7 @@ func(g *Gate)usageKey(q *Quota,user string)(string,int64,error){if q.MaxTotalByt
 func(g *Gate)enforce(w http.ResponseWriter,r *http.Request,user string,create bool,mediaID string){
  ctx,cancel:=context.WithTimeout(r.Context(),10*time.Second);defer cancel()
  quota,err:=g.quotas.GetQuota(ctx,user);if err!=nil{matrixError(w,503,"M_UNKNOWN","Unable to read media quota");return}
- if quota==nil{if create{r=r.WithContext(context.WithValue(r.Context(),ownerContextKey{},user))};g.proxy.ServeHTTP(w,r);return}
+ if quota==nil{if create{r=r.WithContext(context.WithValue(r.Context(),ownerContextKey{},user))};recorder:=&statusRecorder{ResponseWriter:w,status:200};g.proxy.ServeHTTP(recorder,r);if !create&&mediaID!=""&&recorder.status>=200&&recorder.status<300{_=g.cache.DeleteMediaOwner(context.Background(),mediaID)};return}
  if !create&&r.ContentLength<0{matrixError(w,411,"M_UNKNOWN","Content-Length is required for quota enforcement");return}
  if !create&&quota.MaxFileBytes>0&&r.ContentLength>quota.MaxFileBytes{matrixError(w,413,"M_TOO_LARGE","Upload exceeds the per-file media quota");return}
  usageKey,used,err:=g.usageKey(quota,user);if err!=nil{matrixError(w,502,"M_UNKNOWN","Unable to calculate current media usage");return}
