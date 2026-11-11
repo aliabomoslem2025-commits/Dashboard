@@ -58,7 +58,7 @@ Quota errors use Matrix JSON error format with HTTP 413 and errcode M_TOO_LARGE.
 
 ## Activity, metrics and broadcasts
 
-- SYNAPSE_DB_URL is optional and must be a read-only PostgreSQL account. The collector reads Synapse events and user_ips tables for message counts, device last-seen and recent-online counts. Synapse database schema changes may require query updates.
+- SYNAPSE_DB_URL is optional and should use a dedicated read-only PostgreSQL account. mx-core also sets default_transaction_read_only=on on every connection. The collector reads Synapse events and user_ips tables for message counts, device last-seen and recent-online counts. Synapse database schema changes may require query updates. Metrics samples are retained for seven days; activity-history samples are retained for 90 days.
 - Without SYNAPSE_DB_URL, message counts, online counts, and Synapse database size are unavailable; last-seen falls back to the per-user devices Admin API, which can be slow on large servers. The dashboard database size is deliberately not presented as Synapse's database size.
 - SYNAPSE_PROMETHEUS_URL is optional. If set, mx-core scrapes its exposition endpoint every 15 seconds and stores parsed samples.
 - Broadcasts use POST /_synapse/admin/v1/send_server_notice. Synapse server notices must be enabled in homeserver.yaml.
