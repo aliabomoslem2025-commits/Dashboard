@@ -1,43 +1,44 @@
 # Matrix Synapse Dashboard
 
-Laravel 11 + Inertia + Vue 3/Vuetify 3 UI and a Go `mx-core` service.
+Laravel 12 + Inertia + Vue 3/TypeScript + Vuetify 3 dashboard with a Go mx-core service for Synapse Admin API operations.
 
 ## First run
 
-1. Copy the root `.env.example` to `.env`.
-2. Generate a persistent Laravel key and put it in `.env`: `APP_KEY="base64:$(openssl rand -base64 32)"`.
-3. Replace every `change-this-*` value with unique secrets. Set `SYNAPSE_BASE_URL` to the reachable Synapse URL and `SYNAPSE_ADMIN_TOKEN` to a Synapse administrator token.
-4. Set `INITIAL_ADMIN_EMAIL` and a strong `INITIAL_ADMIN_PASSWORD` for the first dashboard administrator.
-5. Run `docker compose up --build` from the repository root. The web container runs migrations and the initial role/admin seeder.
-6. Open `http://localhost:8080/login`.
+1. Copy the root .env.example to .env.
+2. Generate a persistent Laravel key with: APP_KEY="base64:$(openssl rand -base64 32)".
+3. Replace every change-this-* value with unique secrets. Set SYNAPSE_BASE_URL to the actual Synapse Admin API base URL and SYNAPSE_ADMIN_TOKEN to a Synapse administrator access token.
+4. Set INITIAL_ADMIN_EMAIL and a strong INITIAL_ADMIN_PASSWORD for the first dashboard administrator.
+5. Run docker compose up --build from the repository root.
+6. Open http://localhost:8080/login. The detected Synapse version is shown at /server.
 
-The Synapse administrator token is injected into `mx-core` only; it is deliberately not passed to the Laravel/PHP container or browser. Registration is not exposed. The dashboard key, database password, service token and initial admin password must be unique secrets; do not commit `.env`.
+The Synapse administrator token is injected into mx-core only; it is deliberately not passed to Laravel/PHP or the browser. Public registration is disabled. Never commit .env.
 
-## Services
+## Optional data sources
 
-- `web`: Laravel + Inertia + Vue/Vuetify
-- `mx-core`: authenticated Go API; `/health` is public and `/api/v1/*` requires `CORE_SERVICE_TOKEN`
-- `postgres`: dashboard data
-- `redis`: available for future cache/session configuration
+- SYNAPSE_DB_URL: use a dedicated read-only PostgreSQL account. mx-core additionally sets default_transaction_read_only=on. Enables message counts, recent-online counts, last-seen aggregation, and Synapse database size in the activity/metrics collectors.
+- SYNAPSE_PROMETHEUS_URL: Synapse Prometheus exposition endpoint. Scraped every 15 seconds.
+- Without SYNAPSE_DB_URL, message counts, online counts and Synapse database size are shown as unavailable; last-seen falls back to the devices Admin API. Activity media totals use Synapse's paginated global user-media statistics endpoint.
 
-## Current implementation boundary
+## Media Gate
 
-This branch currently contains the application and security foundation, session login, role storage/gates, audit-log persistence/service, Go health/version endpoints, and the initial server-version page. Synapse user/device/room administration endpoints, role-management UI, complete audit-log UI, and the full component/style-guide system remain to be implemented.
+mx-core listens on port 8082 for media uploads. It checks the Matrix access token, the user's configured quota and maximum file size, reserves usage in Redis, and returns Matrix M_TOO_LARGE on quota/size rejection. Other media routes are passed upstream unchanged.
 
+To activate the gate, include docs/nginx-media-gate.conf in the existing Synapse Nginx server block. The example assumes Nginx runs on the Docker host and reaches the gate at 127.0.0.1:8082. If Nginx runs in the same Docker network, change the upstream to http://mx-core:8082.
 
-## Optional telemetry integrations
+## Implemented areas
 
-- `SYNAPSE_DB_URL`: optional PostgreSQL DSN with read-only access to the Synapse database. It is used only for message-count aggregation. Do not grant write privileges.
-- `SYNAPSE_PROMETHEUS_URL`: optional Synapse Prometheus metrics endpoint.
-- `MEDIA_GATE_PORT`: public port for the media reverse proxy. Point Matrix media upload traffic at this port (or route the upload paths through it in your front reverse proxy). The gate proxies all non-upload paths to `SYNAPSE_BASE_URL` unchanged.
+- Synapse users: search/filter/pagination, create/update, admin/deactivated/locked flags, password reset, deactivate, shadow-ban/unban, rate-limit overrides, devices, joined rooms, whois and media usage/deletion.
+- Synapse rooms: search/sort/filter/pagination, details, members, state, block/unblock, asynchronous delete/purge with status polling, make-room-admin and read-only power-level operation.
+- Media & Quotas: per-user total/file quotas, usage display, quota donut/progress, upload reverse proxy, Redis usage cache and cache invalidation after administrative media deletion.
+- Activity: hourly collection of last-seen, 30-day message counts and media usage; configurable heavy-active/active/low-active/dormant/suspicious categories.
+- Metrics: 15-second CPU/RAM/disk/database/user/room/online/Prometheus samples, seven-day metric retention, SSE stream and configurable alerts.
+- Broadcast: queued server notices to one user, all active users, or an activity category, with throttle, retry, recipient status, progress and confirmation.
+- Session login, role/policy gates, audit log persistence, shared RTL layout and persistent light/dark theme.
 
-Server notices must be enabled in Synapse `homeserver.yaml` for broadcasts to succeed.
+## Verification and known boundaries
 
-
-## Optional telemetry integrations
-
-- `SYNAPSE_DB_URL`: optional PostgreSQL DSN with read-only access to the Synapse database. It is used only for message-count aggregation. Do not grant write privileges.
-- `SYNAPSE_PROMETHEUS_URL`: optional Synapse Prometheus metrics endpoint.
-- `MEDIA_GATE_PORT`: public port for the media reverse proxy. Route Matrix media upload traffic through this port (or route the upload paths through it in your front reverse proxy). The gate proxies non-upload paths to `SYNAPSE_BASE_URL` unchanged.
-
-Server notices must be enabled in Synapse `homeserver.yaml` for broadcasts to succeed.
+- Go unit and integration tests run in CI. The Media Gate integration test uses a real Redis service and a test Synapse upstream.
+- CI checks PHP syntax, builds the Vue application, validates Docker Compose and builds the containers.
+- docs/SYNAPSE_ADMIN_API.md records the Synapse routes checked against the current v1.163 documentation.
+- The repository does not reveal which Synapse version is installed in your environment. Connect the actual server, then compare the version shown at /server with the API compatibility notes before enabling version-sensitive operations.
+- Role-management screens and a complete interactive component/style guide remain outside this implementation stage.
