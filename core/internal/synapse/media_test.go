@@ -5,7 +5,7 @@ func TestUserMediaStatsUsesSynapseStatisticsAdminAPI(t *testing.T){
   if r.URL.Path!="/_synapse/admin/v1/statistics/users/media"{t.Errorf("unexpected endpoint: %s",r.URL.Path)}
   if r.Header.Get("Authorization")!="Bearer admin-token"{t.Error("admin token missing")}
   q:=r.URL.Query();if q.Get("from")!="100"||q.Get("limit")!="250"||q.Get("search_term")!="alice"||q.Get("order_by")!="media_length"||q.Get("dir")!="b"{t.Errorf("query mismatch: %v",q)}
-  w.Header().Set("Content-Type","application/json");_,_=w.Write([]byte(\`{"users":[{"user_id":"@alice:example.org","displayname":"Alice","media_count":3,"media_length":4096}],"next_token":350,"total":900}\`))
+  w.Header().Set("Content-Type","application/json");_,_=w.Write([]byte(`{"users":[{"user_id":"@alice:example.org","displayname":"Alice","media_count":3,"media_length":4096}],"next_token":350,"total":900}`))
  }))
  defer srv.Close();client:=New(srv.URL,"admin-token",time.Second)
  page,err:=client.UserMediaStats(context.Background(),"100",250,"alice","media_length","b");if err!=nil{t.Fatal(err)}
