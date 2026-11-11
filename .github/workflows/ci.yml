@@ -71,3 +71,16 @@ jobs:
         run: docker compose config --quiet
       - name: Build containers
         run: docker compose build --pull
+      - name: Start stack and smoke-test Laravel and Go
+        run: |
+          docker compose up -d
+          for attempt in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/login >/dev/null; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8080/login >/dev/null
+          docker compose exec -T web php artisan migrate:status --no-interaction
+          docker compose exec -T mx-core wget -qO- http://127.0.0.1:8081/health
+      - name: Stop stack
+        if: always()
+        run: docker compose down -v
