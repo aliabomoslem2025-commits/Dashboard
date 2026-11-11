@@ -19,6 +19,7 @@ This document records the official Synapse and Matrix API paths used by mx-core.
 | Joined rooms | GET /_synapse/admin/v1/users/{user_id}/joined_rooms | Returns joined room IDs and total |
 | Whois | GET /_synapse/admin/v1/whois/{user_id} | Returns sessions and connection IP/user-agent data |
 | List user media | GET /_synapse/admin/v1/users/{user_id}/media | Uses numeric next_token pagination |
+| Global per-user media statistics | GET /_synapse/admin/v1/statistics/users/media | Paginated per-user media_count and media_length; used by the hourly activity collector |
 | Delete user media | DELETE /_synapse/admin/v1/users/{user_id}/media | Deletes at most 100 files per request by default; mx-core repeats bounded batches |
 
 ### Version caveats
@@ -59,7 +60,7 @@ Quota errors use Matrix JSON error format with HTTP 413 and errcode M_TOO_LARGE.
 ## Activity, metrics and broadcasts
 
 - SYNAPSE_DB_URL is optional and should use a dedicated read-only PostgreSQL account. mx-core also sets default_transaction_read_only=on on every connection. The collector reads Synapse events and user_ips tables for message counts, device last-seen and recent-online counts. Synapse database schema changes may require query updates. Metrics samples are retained for seven days; activity-history samples are retained for 90 days.
-- Without SYNAPSE_DB_URL, message counts, online counts, and Synapse database size are unavailable; last-seen falls back to the per-user devices Admin API, which can be slow on large servers. The dashboard database size is deliberately not presented as Synapse's database size.
+- Without SYNAPSE_DB_URL, message counts, online counts, and Synapse database size are unavailable; last-seen falls back to the per-user devices Admin API, which can be slow on large servers. The dashboard database size is deliberately not presented as Synapse's database size. The activity collector uses GET /_synapse/admin/v1/statistics/users/media for one paginated media-usage snapshot instead of issuing one request per user; the per-user media endpoint remains available for the quota detail page and Media Gate cache refresh.
 - SYNAPSE_PROMETHEUS_URL is optional. If set, mx-core scrapes its exposition endpoint every 15 seconds and stores parsed samples.
 - Broadcasts use POST /_synapse/admin/v1/send_server_notice. Synapse server notices must be enabled in homeserver.yaml.
 
