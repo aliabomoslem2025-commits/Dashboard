@@ -1,36 +1,8 @@
 package httpapi
-
-import (
- "context"
- "encoding/json"
- "io"
- "net/http"
- "net/url"
- "strings"
- "time"
-
- "github.com/go-chi/chi/v5"
-)
-
-func segment(v string) string { return url.PathEscape(v) }
-func (h *Handler) proxy(w http.ResponseWriter,r *http.Request,method,path string) {
- ctx,cancel:=context.WithTimeout(r.Context(),20*time.Second); defer cancel()
- var body []byte
- if r.Body!=nil { b,err:=io.ReadAll(http.MaxBytesReader(w,r.Body,2<<20)); if err!=nil { write(w,413,envelope{OK:false,Error:&apiError{Code:"request_too_large",Message:"Request body exceeds 2 MiB"}});return }; body=b }
- status,data,err:=h.synapse.AdminRequest(ctx,method,path,r.URL.Query(),body)
- if err!=nil {
-  code:="synapse_error"; msg:="Synapse Admin API request failed"
-  var remote map[string]any
-  if json.Unmarshal(data,&remote)==nil { if s,ok:=remote["error"].(string);ok&&s!="" {msg=s}; if s,ok:=remote["errcode"].(string);ok&&s!="" {code=s} }
-  h.logger.Warn().Err(err).Str("path",path).Int("status",status).Msg("Synapse Admin API request failed")
-  if status==0 { status=http.StatusBadGateway } else if status<400||status>599 {status=http.StatusBadGateway}
-  write(w,status,envelope{OK:false,Error:&apiError{Code:code,Message:msg}});return
- }
- var payload any
- if len(data)>0 && json.Unmarshal(data,&payload)!=nil { payload=string(data) }
- write(w,status,envelope{OK:true,Data:payload})
-}
-func (h *Handler) registerAdminRoutes(r chi.Router) {
+import("context";"encoding/json";"io";"net/http";"net/url";"time";"github.com/go-chi/chi/v5")
+func segment(v string)string{return url.PathEscape(v)}
+func(h *Handler)proxy(w http.ResponseWriter,r *http.Request,method,path string){ctx,cancel:=context.WithTimeout(r.Context(),20*time.Second);defer cancel();var body []byte;if r.Body!=nil{b,err:=io.ReadAll(http.MaxBytesReader(w,r.Body,2<<20));if err!=nil{write(w,413,envelope{OK:false,Error:&apiError{Code:"request_too_large",Message:"Request body exceeds 2 MiB"}});return};body=b};status,data,err:=h.synapse.AdminRequest(ctx,method,path,r.URL.Query(),body);if err!=nil{code:="synapse_error";msg:="Synapse Admin API request failed";var remote map[string]any;if json.Unmarshal(data,&remote)==nil{if s,ok:=remote["error"].(string);ok&&s!=""{msg=s};if s,ok:=remote["errcode"].(string);ok&&s!=""{code=s}};h.logger.Warn().Err(err).Str("path",path).Int("status",status).Msg("Synapse Admin API request failed");if status==0||status<400||status>599{status=http.StatusBadGateway};write(w,status,envelope{OK:false,Error:&apiError{Code:code,Message:msg}});return};var payload any;if len(data)>0&&json.Unmarshal(data,&payload)!=nil{payload=string(data)};write(w,status,envelope{OK:true,Data:payload})}
+func(h *Handler)registerAdminRoutes(r chi.Router){
  r.Get("/api/v1/users",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodGet,"/_synapse/admin/v2/users")})
  r.Get("/api/v1/users/{userID}",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodGet,"/_synapse/admin/v2/users/"+segment(chi.URLParam(q,"userID")))})
  r.Put("/api/v1/users/{userID}",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodPut,"/_synapse/admin/v2/users/"+segment(chi.URLParam(q,"userID")))})
@@ -43,7 +15,7 @@ func (h *Handler) registerAdminRoutes(r chi.Router) {
  r.Post("/api/v1/users/{userID}/ratelimit",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodPost,"/_synapse/admin/v1/users/"+segment(chi.URLParam(q,"userID"))+"/override_ratelimit")})
  r.Delete("/api/v1/users/{userID}/ratelimit",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodDelete,"/_synapse/admin/v1/users/"+segment(chi.URLParam(q,"userID"))+"/override_ratelimit")})
  r.Get("/api/v1/users/{userID}/devices",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodGet,"/_synapse/admin/v2/users/"+segment(chi.URLParam(q,"userID"))+"/devices")})
- r.Delete("/api/v1/users/{userID}/devices/{deviceID}",func(w http.ResponseWriter,q *http.Request){ body:=map[string][]string{"devices":{chi.URLParam(q,"deviceID")}}; b,_:=json.Marshal(body); q.Body=io.NopCloser(strings.NewReader(string(b))); h.proxy(w,q,http.MethodDelete,"/_synapse/admin/v2/users/"+segment(chi.URLParam(q,"userID"))+"/devices") })
+ r.Delete("/api/v1/users/{userID}/devices/{deviceID}",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodDelete,"/_synapse/admin/v2/users/"+segment(chi.URLParam(q,"userID"))+"/devices/"+segment(chi.URLParam(q,"deviceID")))})
  r.Get("/api/v1/users/{userID}/joined-rooms",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodGet,"/_synapse/admin/v1/users/"+segment(chi.URLParam(q,"userID"))+"/joined_rooms")})
  r.Get("/api/v1/users/{userID}/whois",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodGet,"/_synapse/admin/v1/whois/"+segment(chi.URLParam(q,"userID")))})
  r.Get("/api/v1/users/{userID}/media",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodGet,"/_synapse/admin/v1/users/"+segment(chi.URLParam(q,"userID"))+"/media")})
