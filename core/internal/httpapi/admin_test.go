@@ -22,7 +22,7 @@ func TestUserListUsesSynapseV2AdminPath(t *testing.T){
 }
 func TestAdminProxyRequiresCoreServiceToken(t *testing.T){
  client:=synapse.New("http://127.0.0.1:9","admin",time.Second);h:=New(client,"core-token",zerolog.Nop())
- router:=chi.NewRouter();router.Group(func(r chi.Router){r.Use(h.Authenticate);h.registerAdminRoutes(r)})
+ router:=chi.NewRouter();router.Group(func(r chi.Router){r.Use(h.Authenticate);h.RegisterAdminRoutes(r)})
  req:=httptest.NewRequest(http.MethodGet,"/api/v1/users",nil);req.Header.Set("Authorization","Bearer wrong")
  rec:=httptest.NewRecorder();router.ServeHTTP(rec,req)
  if rec.Code!=401{t.Fatalf("expected 401, got %d",rec.Code)}
