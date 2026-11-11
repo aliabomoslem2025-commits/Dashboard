@@ -1,27 +1,47 @@
 package mediagate
-import("context";"crypto/sha256";"encoding/hex";"encoding/json";"net/http";"net/http/httputil";"net/url";"strconv";"strings";"time")
+import(
+ "bytes";"context";"crypto/sha256";"encoding/hex";"encoding/json";"fmt";"io";"net/http";"net/http/httputil";"net/url";"path";"strconv";"strings";"time"
+)
 type Quota struct{MaxTotalBytes int64;MaxFileBytes int64;Period string}
 type QuotaRepository interface{GetQuota(context.Context,string)(*Quota,error)}
-type Cache interface{GetUser(context.Context,string)(string,error);SetUser(context.Context,string,string,time.Duration)error;GetUsage(context.Context,string)(int64,bool,error);SetUsage(context.Context,string,int64,time.Duration)error;AddUsage(context.Context,string,int64)error}
+type Cache interface{GetUser(context.Context,string)(string,error);SetUser(context.Context,string,string,time.Duration)error;GetUsage(context.Context,string)(int64,bool,error);SetUsage(context.Context,string,int64,time.Duration)error;AddUsage(context.Context,string,int64)error;GetMediaOwner(context.Context,string)(string,error);SetMediaOwner(context.Context,string,string,time.Duration)error;DeleteMediaOwner(context.Context,string)error}
 type Resolver interface{WhoAmI(context.Context,string)(string,error);MediaBytesSince(context.Context,string,time.Time)(int64,error)}
-type Gate struct{proxy http.Handler;quotas QuotaRepository;cache Cache;resolver Resolver}
-func New(target *url.URL,q QuotaRepository,c Cache,r Resolver)*Gate{p:=httputil.NewSingleHostReverseProxy(target);p.ErrorHandler=func(w http.ResponseWriter,_ *http.Request,_ error){http.Error(w,"Upstream media service unavailable",http.StatusBadGateway)};return &Gate{p,q,c,r}}
-func isUpload(p string)bool{return p=="/_matrix/media/v1/upload"||p=="/_matrix/media/v3/upload"||p=="/_matrix/client/v1/media/upload"}
+type ownerContextKey struct{}
+type Gate struct{proxy *httputil.ReverseProxy;quotas QuotaRepository;cache Cache;resolver Resolver}
+func New(target *url.URL,q QuotaRepository,c Cache,r Resolver)*Gate{
+ p:=httputil.NewSingleHostReverseProxy(target)
+ p.ErrorHandler=func(w http.ResponseWriter,_ *http.Request,_ error){http.Error(w,"Upstream media service unavailable",http.StatusBadGateway)}
+ p.ModifyResponse=func(resp *http.Response)error{owner,_:=resp.Request.Context().Value(ownerContextKey{}).(string);if owner==""||resp.StatusCode<200||resp.StatusCode>=300{return nil};body,err:=io.ReadAll(io.LimitReader(resp.Body,1<<20));if err!=nil{return err};_=resp.Body.Close();var result struct{ContentURI string `json:"content_uri"`};if json.Unmarshal(body,&result)==nil&&result.ContentURI!=""{mxc,err:=url.Parse(result.ContentURI);if err==nil{mediaID:=path.Base(mxc.Path);if mediaID!=""&&mediaID!="."{if err=c.SetMediaOwner(context.Background(),mediaID,owner,24*time.Hour);err!=nil{return err}}}};resp.Body=io.NopCloser(bytes.NewReader(body));resp.ContentLength=int64(len(body));resp.Header.Set("Content-Length",strconv.Itoa(len(body)));return nil}
+ return &Gate{proxy:p,quotas:q,cache:c,resolver:r}
+}
+func isCreate(p string)bool{return p=="/_matrix/media/v1/create"}
+func isUpload(r *http.Request)bool{p:=r.URL.Path;if r.Method==http.MethodPost&&(p=="/_matrix/media/v1/upload"||p=="/_matrix/media/v3/upload"){return true};return r.Method==http.MethodPut&&(strings.HasPrefix(p,"/_matrix/media/v3/upload/")||strings.HasPrefix(p,"/_matrix/media/v1/upload/"))}
 func periodStart(p string,n time.Time)time.Time{switch strings.ToLower(p){case"day","daily":y,m,d:=n.Date();return time.Date(y,m,d,0,0,0,0,n.Location());case"week","weekly":y,m,d:=n.Date();return time.Date(y,m,d-((int(n.Weekday())+6)%7),0,0,0,0,n.Location());case"month","monthly":y,m,_:=n.Date();return time.Date(y,m,1,0,0,0,0,n.Location());default:return time.Unix(0,0)}}
 func matrixError(w http.ResponseWriter,status int,code,msg string){w.Header().Set("Content-Type","application/json");w.WriteHeader(status);_=json.NewEncoder(w).Encode(map[string]string{"errcode":code,"error":msg})}
-func(g *Gate)ServeHTTP(w http.ResponseWriter,r *http.Request){
- if !isUpload(r.URL.Path){g.proxy.ServeHTTP(w,r);return}
- token:=strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"),"Bearer "));if token==""{token=r.URL.Query().Get("access_token")};if token==""{matrixError(w,401,"M_MISSING_TOKEN","Missing access token");return}
- sum:=sha256.Sum256([]byte(token));tokenKey:=hex.EncodeToString(sum[:]);ctx,cancel:=context.WithTimeout(r.Context(),8*time.Second);defer cancel()
- userID,err:=g.cache.GetUser(ctx,tokenKey);if err!=nil||userID==""{userID,err=g.resolver.WhoAmI(ctx,token);if err!=nil{matrixError(w,401,"M_UNKNOWN_TOKEN","Invalid or expired access token");return};_=g.cache.SetUser(ctx,tokenKey,userID,60*time.Second)}
- quota,err:=g.quotas.GetQuota(ctx,userID);if err!=nil{matrixError(w,503,"M_UNKNOWN","Unable to read media quota");return};if quota==nil{g.proxy.ServeHTTP(w,r);return}
- if r.ContentLength<0{matrixError(w,411,"M_UNKNOWN","Content-Length is required for quota enforcement");return}
- if quota.MaxFileBytes>0&&r.ContentLength>quota.MaxFileBytes{matrixError(w,413,"M_TOO_LARGE","Upload exceeds the per-file media quota");return}
- usageKey:=""
- if quota.MaxTotalBytes>0{start:=periodStart(quota.Period,time.Now());usageKey=userID+":"+strconv.FormatInt(start.Unix(),10);used,ok,e:=g.cache.GetUsage(ctx,usageKey);if e!=nil{matrixError(w,503,"M_UNKNOWN","Unable to read media usage");return};if !ok{used,e=g.resolver.MediaBytesSince(ctx,userID,start);if e!=nil{matrixError(w,502,"M_UNKNOWN","Unable to calculate current media usage");return};_=g.cache.SetUsage(ctx,usageKey,used,2*time.Minute)};if used+r.ContentLength>quota.MaxTotalBytes{matrixError(w,413,"M_TOO_LARGE","Upload would exceed the total media quota");return}}
+func(g *Gate)resolveUser(ctx context.Context,r *http.Request)(string,error){token:=strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"),"Bearer "));if token==""{token=r.URL.Query().Get("access_token")};if token==""{return "",fmt.Errorf("missing access token")};sum:=sha256.Sum256([]byte(token));key:=hex.EncodeToString(sum[:]);user,err:=g.cache.GetUser(ctx,key);if err==nil&&user!=""{return user,nil};user,err=g.resolver.WhoAmI(ctx,token);if err!=nil{return "",err};_=g.cache.SetUser(ctx,key,user,60*time.Second);return user,nil}
+func(g *Gate)usageKey(q *Quota,user string)(string,int64,error){if q.MaxTotalBytes<=0{return "",0,nil};start:=periodStart(q.Period,time.Now());key:=user+":"+strconv.FormatInt(start.Unix(),10);used,ok,err:=g.cache.GetUsage(context.Background(),key);if err!=nil{return "",0,err};if !ok{used,err=g.resolver.MediaBytesSince(context.Background(),user,start);if err!=nil{return "",0,err};_=g.cache.SetUsage(context.Background(),key,used,2*time.Minute)};return key,used,nil}
+func(g *Gate)enforce(w http.ResponseWriter,r *http.Request,user string,create bool,mediaID string){
+ ctx,cancel:=context.WithTimeout(r.Context(),10*time.Second);defer cancel()
+ quota,err:=g.quotas.GetQuota(ctx,user);if err!=nil{matrixError(w,503,"M_UNKNOWN","Unable to read media quota");return}
+ if quota==nil{if create{r=r.WithContext(context.WithValue(r.Context(),ownerContextKey{},user))};g.proxy.ServeHTTP(w,r);return}
+ if !create&&r.ContentLength<0{matrixError(w,411,"M_UNKNOWN","Content-Length is required for quota enforcement");return}
+ if !create&&quota.MaxFileBytes>0&&r.ContentLength>quota.MaxFileBytes{matrixError(w,413,"M_TOO_LARGE","Upload exceeds the per-file media quota");return}
+ usageKey,used,err:=g.usageKey(quota,user);if err!=nil{matrixError(w,502,"M_UNKNOWN","Unable to calculate current media usage");return}
+ if quota.MaxTotalBytes>0&&(used>=quota.MaxTotalBytes||(!create&&used+r.ContentLength>quota.MaxTotalBytes)){matrixError(w,413,"M_TOO_LARGE","Upload would exceed the total media quota");return}
+ if create{r=r.WithContext(context.WithValue(r.Context(),ownerContextKey{},user));g.proxy.ServeHTTP(w,r);return}
  max:=quota.MaxFileBytes;if max<=0{max=r.ContentLength};r.Body=http.MaxBytesReader(w,r.Body,max)
  recorder:=&statusRecorder{ResponseWriter:w,status:200};g.proxy.ServeHTTP(recorder,r)
- if usageKey!=""&&recorder.status>=200&&recorder.status<300{_=g.cache.AddUsage(context.Background(),usageKey,r.ContentLength)}
+ if recorder.status>=200&&recorder.status<300&&usageKey!=""{_=g.cache.AddUsage(context.Background(),usageKey,r.ContentLength)}
+ if recorder.status>=200&&recorder.status<300&&mediaID!=""{_=g.cache.DeleteMediaOwner(context.Background(),mediaID)}
+}
+func(g *Gate)ServeHTTP(w http.ResponseWriter,r *http.Request){
+ ctx,cancel:=context.WithTimeout(r.Context(),8*time.Second);defer cancel()
+ if isCreate(r.URL.Path){user,err:=g.resolveUser(ctx,r);if err!=nil{matrixError(w,401,"M_UNKNOWN_TOKEN","A valid access token is required to create media");return};g.enforce(w,r,user,true,"");return}
+ if !isUpload(r){g.proxy.ServeHTTP(w,r);return}
+ user:="";mediaID:=""
+ if r.Method==http.MethodPut{mediaID=path.Base(r.URL.Path);user,_=g.cache.GetMediaOwner(ctx,mediaID)}
+ if user==""{var err error;user,err=g.resolveUser(ctx,r);if err!=nil{matrixError(w,401,"M_MISSING_TOKEN","Upload requires an access token or a media ID created through this gate");return}}
+ g.enforce(w,r,user,false,mediaID)
 }
 type statusRecorder struct{http.ResponseWriter;status int}
 func(s *statusRecorder)WriteHeader(code int){s.status=code;s.ResponseWriter.WriteHeader(code)}
