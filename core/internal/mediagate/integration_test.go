@@ -1,5 +1,5 @@
 package mediagate
-import("context";"net/http";"net/http/httptest";"net/url";"os";"strings";"sync/atomic";"testing";"time";"github.com/redis/go-redis/v9")
+import("context";"net/http";"net/http/httptest";"net/url";"os";"strings";"sync/atomic";"testing";"github.com/redis/go-redis/v9")
 func TestMediaGateWithRedisAndSynapseUpstream(t *testing.T){
  addr:=os.Getenv("REDIS_TEST_ADDR");if addr==""{t.Skip("REDIS_TEST_ADDR is not configured")}
  ctx:=context.Background();client:=redis.NewClient(&redis.Options{Addr:addr});defer client.Close();if err:=client.FlushDB(ctx).Err();err!=nil{t.Fatal(err)}
