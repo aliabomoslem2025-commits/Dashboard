@@ -41,7 +41,7 @@ This document records the official Synapse and Matrix API paths used by mx-core.
 | Make room admin | POST /_synapse/admin/v1/rooms/{room_id}/make_room_admin |
 | Delete/purge | DELETE /_synapse/admin/v2/rooms/{room_id} with a non-empty JSON body |
 
-The v2 room-deletion endpoint is documented as experimental/asynchronous. It returns a delete_id; the current UI submits the operation but does not yet poll the delete-status endpoint. The room read-only action first grants the configured Synapse admin account room power, then writes m.room.power_levels through the Matrix Client-Server state endpoint. It raises default and explicit event/state thresholds to 100. This action is not automatically reversible; restore the original power-level state manually if needed.
+The v2 room-deletion endpoint is documented as experimental/asynchronous. It returns a delete_id; the dashboard polls GET /_synapse/admin/v2/rooms/{room_id}/delete_status every three seconds until the task completes or fails. The room read-only action first grants the configured Synapse admin account room power, then writes m.room.power_levels through the Matrix Client-Server state endpoint. It raises default and explicit event/state thresholds to 100. This action is not automatically reversible; restore the original power-level state manually if needed.
 
 ## Media API and Media Gate
 
