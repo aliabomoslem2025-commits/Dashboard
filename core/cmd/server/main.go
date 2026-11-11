@@ -5,7 +5,7 @@ import(
  "github.com/go-chi/chi/v5";"github.com/jackc/pgx/v5/pgxpool";"github.com/redis/go-redis/v9";"github.com/rs/zerolog";"github.com/rs/zerolog/log"
 )
 func main(){
- if len(os.Args)>1&&os.Args[1]=="healthcheck"{os.Exit(0)}
+ if len(os.Args)>1&&os.Args[1]=="healthcheck"{resp,err:=http.Get("http://127.0.0.1:8081/health");if err!=nil{os.Exit(1)};defer resp.Body.Close();if resp.StatusCode!=http.StatusOK{os.Exit(1)};os.Exit(0)}
  cfg,err:=config.Load();if err!=nil{log.Fatal().Err(err).Msg("invalid configuration")}
  logger:=zerolog.New(os.Stdout).With().Timestamp().Logger()
  client:=synapse.New(cfg.SynapseBaseURL,cfg.SynapseAdminToken,cfg.RequestTimeout)
