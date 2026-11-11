@@ -59,7 +59,7 @@ Quota errors use Matrix JSON error format with HTTP 413 and errcode M_TOO_LARGE.
 ## Activity, metrics and broadcasts
 
 - SYNAPSE_DB_URL is optional and must be a read-only PostgreSQL account. The collector reads Synapse events and user_ips tables for message counts, device last-seen and recent-online counts. Synapse database schema changes may require query updates.
-- Without SYNAPSE_DB_URL, message counts are unavailable; last-seen falls back to the per-user devices Admin API, which can be slow on large servers. Online counts remain unavailable rather than being fabricated.
+- Without SYNAPSE_DB_URL, message counts, online counts, and Synapse database size are unavailable; last-seen falls back to the per-user devices Admin API, which can be slow on large servers. The dashboard database size is deliberately not presented as Synapse's database size.
 - SYNAPSE_PROMETHEUS_URL is optional. If set, mx-core scrapes its exposition endpoint every 15 seconds and stores parsed samples.
 - Broadcasts use POST /_synapse/admin/v1/send_server_notice. Synapse server notices must be enabled in homeserver.yaml.
 
@@ -70,3 +70,5 @@ Quota errors use Matrix JSON error format with HTTP 413 and errcode M_TOO_LARGE.
 3. Compare that version with the compatibility caveats above, especially the 1.93 locked requirement and the experimental v2 room-delete endpoint.
 4. Exercise list/detail requests with a test account and test room before enabling destructive operations.
 5. Verify media upload routing at the front reverse proxy: all supported upload/create paths must reach mx-core:8082, while other media requests may continue to reach Synapse directly or pass through the gate.
+
+See `docs/nginx-media-gate.conf` for a ready-to-include Nginx snippet. It routes only media upload/create requests through the gate; downloads and all other paths remain on the existing Synapse upstream.
