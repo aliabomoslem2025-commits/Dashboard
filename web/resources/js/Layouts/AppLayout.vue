@@ -15,6 +15,12 @@ const logout=()=>router.post('/logout')
    <v-app-bar-title>مدیریت Matrix Synapse</v-app-bar-title>
    <v-menu>
     <template #activator="{props}"><v-btn v-bind="props" icon="mdi-menu" variant="text" aria-label="منوی صفحات"/></template>
+<style scoped>
+:deep(.v-card){transition:box-shadow .22s ease,transform .22s ease}
+:deep(.v-card:hover){transform:translateY(-1px)}
+:deep(svg polyline){transition:all .35s ease}
+@media(prefers-reduced-motion:reduce){:deep(.v-card),:deep(svg polyline){transition:none}:deep(.v-card:hover){transform:none}}
+</style>
     <v-list density="compact"><v-list-item v-for="link in links" :key="link.href" :title="link.title" :href="link.href"/></v-list>
    </v-menu>
    <v-btn icon="mdi-theme-light-dark" variant="text" aria-label="تغییر پوسته" @click="toggleTheme"/>
