@@ -1,6 +1,6 @@
 # Synapse API compatibility and implementation map
 
-This document records the official Synapse and Matrix API paths used by mx-core. The repository does not contain a reachable Synapse URL or a running homeserver version, so these paths were checked against the current Element-HQ Synapse Admin API documentation (Synapse v1.160/v1.161 documentation available at review time) and Matrix Client-Server specification, **not yet against the user's installed server**. Once SYNAPSE_BASE_URL is configured, the dashboard's Server page reports the live Synapse version. Do not treat version-sensitive endpoints below as runtime-verified until that connection succeeds.
+This document records the official Synapse and Matrix API paths used by mx-core. The repository does not contain a reachable Synapse URL or a running homeserver version, so these paths were checked against the current Element-HQ Synapse Admin API documentation (Synapse v1.163 documentation available at review time) and Matrix Client-Server specification, **not yet against the user's installed server**. Once SYNAPSE_BASE_URL is configured, the dashboard's Server page reports the live Synapse version. Do not treat version-sensitive endpoints below as runtime-verified until that connection succeeds.
 
 ## User administration
 
