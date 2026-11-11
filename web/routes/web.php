@@ -1,5 +1,6 @@
 <?php
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\BroadcastController;
 use App\Http\Controllers\MetricsController;

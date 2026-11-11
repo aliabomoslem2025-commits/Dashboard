@@ -32,3 +32,12 @@ This branch currently contains the application and security foundation, session 
 - `MEDIA_GATE_PORT`: public port for the media reverse proxy. Point Matrix media upload traffic at this port (or route the upload paths through it in your front reverse proxy). The gate proxies all non-upload paths to `SYNAPSE_BASE_URL` unchanged.
 
 Server notices must be enabled in Synapse `homeserver.yaml` for broadcasts to succeed.
+
+
+## Optional telemetry integrations
+
+- `SYNAPSE_DB_URL`: optional PostgreSQL DSN with read-only access to the Synapse database. It is used only for message-count aggregation. Do not grant write privileges.
+- `SYNAPSE_PROMETHEUS_URL`: optional Synapse Prometheus metrics endpoint.
+- `MEDIA_GATE_PORT`: public port for the media reverse proxy. Route Matrix media upload traffic through this port (or route the upload paths through it in your front reverse proxy). The gate proxies non-upload paths to `SYNAPSE_BASE_URL` unchanged.
+
+Server notices must be enabled in Synapse `homeserver.yaml` for broadcasts to succeed.
