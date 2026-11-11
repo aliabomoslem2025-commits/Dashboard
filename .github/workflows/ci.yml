@@ -40,3 +40,8 @@ jobs:
       - name: Validate Composer configuration
         working-directory: web
         run: composer validate --no-check-publish
+      - name: PHP syntax check
+        working-directory: web
+        run: |
+          php -l artisan
+          find app bootstrap config database public routes -name '*.php' -print0 | xargs -0 -n1 php -l
