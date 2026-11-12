@@ -5,7 +5,6 @@ use App\Services\CoreClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Throwable;
 class BroadcastController {
@@ -17,7 +16,7 @@ class BroadcastController {
   $now=now();
   $broadcastId=DB::table('broadcasts')->insertGetId(['message'=>$data['message'],'msgtype'=>'m.text','audience'=>'selected','activity_category'=>null,'throttle_ms'=>0,'max_retries'=>0,'status'=>'sending','created_by'=>$r->user()->id,'started_at'=>$now,'created_at'=>$now,'updated_at'=>$now]);
   $recipientId=DB::table('broadcast_recipients')->insertGetId(['broadcast_id'=>$broadcastId,'user_id'=>$data['user_id'],'status'=>'pending','attempts'=>0,'created_at'=>$now,'updated_at'=>$now]);
-  $txnId=(string) Str::uuid();
+  $txnId=sprintf('broadcast-%d-recipient-%d',$broadcastId,$recipientId);
   $payload=['user_id'=>$data['user_id'],'content'=>['msgtype'=>'m.text','body'=>$data['message']]];
   try {
    $result=$this->core->request('PUT','/api/v1/notices/'.rawurlencode($txnId),[],$payload);
