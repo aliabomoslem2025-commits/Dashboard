@@ -42,3 +42,20 @@ To activate the gate, include docs/nginx-media-gate.conf in the existing Synapse
 - docs/SYNAPSE_ADMIN_API.md records the Synapse routes checked against the current v1.163 documentation.
 - The repository does not reveal which Synapse version is installed in your environment. Connect the actual server, then compare the version shown at /server with the API compatibility notes before enabling version-sensitive operations.
 - Role-management screens and a complete interactive component/style guide remain outside this implementation stage.
+
+## Media Gate reverse-proxy wiring
+
+The Media Gate listens on host loopback port 8082. It is **not** automatically inserted into your existing Synapse reverse proxy. Route the Matrix media namespace to it at the public reverse proxy, for example:
+
+```nginx
+location ^~ /_matrix/media/ {
+    proxy_pass http://127.0.0.1:8082;
+    proxy_http_version 1.1;
+    proxy_request_buffering off;
+    proxy_buffering off;
+    client_max_body_size 0;
+    proxy_read_timeout 300s;
+}
+```
+
+Keep the rest of `/_matrix/` routed to Synapse as before. Set `SYNAPSE_BASE_URL` to Synapse's **internal direct listener** (for example `http://synapse:8008`), not the public hostname whose media paths now route back to the gate; otherwise the proxy can loop. Do not expose port 8082 publicly. Use a dedicated read-only PostgreSQL account for `SYNAPSE_DB_URL`.

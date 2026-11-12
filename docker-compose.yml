@@ -33,8 +33,21 @@ services:
     restart: unless-stopped
   mx-core:
     build: ./core
-    env_file: .env
-    environment: { CORE_HTTP_ADDR: ":8081", MEDIA_GATE_ADDR: ":8082" }
+    environment:
+      CORE_HTTP_ADDR: ":8081"
+      MEDIA_GATE_ADDR: ":8082"
+      CORE_SERVICE_TOKEN: ${CORE_SERVICE_TOKEN:?Set CORE_SERVICE_TOKEN in .env}
+      SYNAPSE_BASE_URL: ${SYNAPSE_BASE_URL:?Set SYNAPSE_BASE_URL in .env}
+      SYNAPSE_ADMIN_TOKEN: ${SYNAPSE_ADMIN_TOKEN:?Set SYNAPSE_ADMIN_TOKEN in .env}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-dashboard}
+      DB_USERNAME: ${DB_USERNAME:-dashboard}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      SYNAPSE_DB_URL: ${SYNAPSE_DB_URL:-}
+      SYNAPSE_PROMETHEUS_URL: ${SYNAPSE_PROMETHEUS_URL:-}
     expose: ["8081","8082"]
     ports: ["127.0.0.1:${MEDIA_GATE_PORT:-8082}:8082"]
     healthcheck: { test: ["CMD", "/mx-core", "healthcheck"], interval: 15s, timeout: 3s, retries: 5 }
