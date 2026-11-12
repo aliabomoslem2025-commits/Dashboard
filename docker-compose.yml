@@ -48,6 +48,9 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-}
       SYNAPSE_DB_URL: ${SYNAPSE_DB_URL:-}
       SYNAPSE_PROMETHEUS_URL: ${SYNAPSE_PROMETHEUS_URL:-}
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
     expose: ["8081","8082"]
     ports: ["127.0.0.1:${MEDIA_GATE_PORT:-8082}:8082"]
     healthcheck: { test: ["CMD", "/mx-core", "healthcheck"], interval: 15s, timeout: 3s, retries: 5 }
