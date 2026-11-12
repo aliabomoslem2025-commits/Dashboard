@@ -19,7 +19,7 @@ func (h *Handler) metricsSnapshot(ctx context.Context) (map[string]any, time.Tim
 	var cpu float64
 	var ramUsed, ramTotal, diskUsed, diskTotal, databaseBytes, users, rooms, online int64
 	var prometheusJSON string
-	err := h.db.QueryRow(ctx, "SELECT sampled_at, COALESCE(cpu_percent, 0)::double precision, COALESCE(ram_used_bytes, 0)::bigint, COALESCE(ram_total_bytes, 0)::bigint, COALESCE(disk_used_bytes, 0)::bigint, COALESCE(disk_total_bytes, 0)::bigint, COALESCE(database_bytes, 0)::bigint, COALESCE(users_total, 0)::bigint, COALESCE(rooms_total, 0)::bigint, COALESCE(online_users, 0)::bigint, COALESCE(prometheus, '{}'::jsonb)::text FROM system_metrics ORDER BY sampled_at DESC LIMIT 1").Scan(&sampledAt, &cpu, &ramUsed, &ramTotal, &diskUsed, &diskTotal, &databaseBytes, &users, &rooms, &online, &prometheusJSON)
+	err := h.db.QueryRow(ctx, "SELECT sampled_at, COALESCE(cpu_percent, 0)::double precision, COALESCE(ram_used_bytes, 0)::bigint, COALESCE(ram_total_bytes, 0)::bigint, COALESCE(disk_used_bytes, 0)::bigint, COALESCE(disk_total_bytes, 0)::bigint, COALESCE(database_bytes, -1)::bigint, COALESCE(users_total, 0)::bigint, COALESCE(rooms_total, 0)::bigint, COALESCE(online_users, -1)::bigint, COALESCE(prometheus, '{}'::jsonb)::text FROM system_metrics ORDER BY sampled_at DESC LIMIT 1").Scan(&sampledAt, &cpu, &ramUsed, &ramTotal, &diskUsed, &diskTotal, &databaseBytes, &users, &rooms, &online, &prometheusJSON)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, time.Time{}, nil
 	}
@@ -33,12 +33,15 @@ func (h *Handler) metricsSnapshot(ctx context.Context) (map[string]any, time.Tim
 			prometheus = map[string]any{"parse_error": "invalid Prometheus JSON"}
 		}
 	}
+	var databaseValue, onlineValue any
+	if databaseBytes >= 0 { databaseValue = databaseBytes }
+	if online >= 0 { onlineValue = online }
 	return map[string]any{
 		"sampled_at": sampledAt, "cpu_percent": cpu,
 		"ram_used_bytes": ramUsed, "ram_total_bytes": ramTotal,
 		"disk_used_bytes": diskUsed, "disk_total_bytes": diskTotal,
-		"database_bytes": databaseBytes, "users_total": users,
-		"rooms_total": rooms, "online_users": online,
+		"database_bytes": databaseValue, "users_total": users,
+		"rooms_total": rooms, "online_users": onlineValue,
 		"prometheus": prometheus,
 	}, sampledAt, nil
 }
