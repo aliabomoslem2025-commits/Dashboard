@@ -5,9 +5,9 @@ ROOT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
 cd "$ROOT_DIR"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; RESET='\033[0m'
-info() { printf "$GREEN[INFO]$RESET %s\n" "$*"; }
-warn() { printf "$YELLOW[WARN]$RESET %s\n" "$*"; }
-die()  { printf "$RED[ERROR]$RESET %s\n" "$*" >&2; exit 1; }
+info() { printf "%b[INFO]%b %s\n" "$GREEN" "$RESET" "$*"; }
+warn() { printf "%b[WARN]%b %s\n" "$YELLOW" "$RESET" "$*"; }
+die()  { printf "%b[ERROR]%b %s\n" "$RED" "$RESET" "$*" >&2; exit 1; }
 
 # Host requirements: Docker Engine, Docker Compose, OpenSSL, and standard shell tools.
 # Go, Node.js, PHP, Composer, and all language build tools run only inside containers.
