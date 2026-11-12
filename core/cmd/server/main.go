@@ -18,7 +18,7 @@ func main(){
  h.SetMediaUsageCache(mediagate.RedisCache{Client:redisClient})
  target,err:=url.Parse(cfg.SynapseBaseURL);if err!=nil{log.Fatal().Err(err).Msg("invalid Synapse URL")}
  gate:=mediagate.New(target,mediagate.PostgresQuotas{Pool:pool},mediagate.RedisCache{Client:redisClient},client)
- router:=chi.NewRouter();router.Get("/health",h.Health);router.Group(func(r chi.Router){r.Use(h.Authenticate);r.Get("/api/v1/server/version",h.ServerVersion);r.Get("/api/v1/metrics/current",h.MetricsCurrent);r.Get("/api/v1/metrics/stream",h.MetricsStream);h.RegisterAdminRoutes(r)})
+ router:=chi.NewRouter();router.Get("/health",h.Health);router.Group(func(r chi.Router){r.Use(h.Authenticate);r.Get("/api/v1/server/version",h.ServerVersion);r.Get("/api/v1/metrics/current",h.MetricsCurrent);r.Get("/api/v1/metrics/stream",h.MetricsStream);h.RegisterAdminRoutes(r);h.RegisterNoticeRoutes(r)})
  jobCtx,cancelJobs:=context.WithCancel(context.Background());defer cancelJobs()
  var synapseDB *pgxpool.Pool
  if synapseDSN:=os.Getenv("SYNAPSE_DB_URL");synapseDSN!=""{poolConfig,parseErr:=pgxpool.ParseConfig(synapseDSN);if parseErr!=nil{logger.Warn().Err(parseErr).Msg("Synapse read-only DB configuration invalid; message counts disabled")}else{if poolConfig.ConnConfig.RuntimeParams==nil{poolConfig.ConnConfig.RuntimeParams=map[string]string{}};poolConfig.ConnConfig.RuntimeParams["default_transaction_read_only"]="on";synapseDB,err=pgxpool.NewWithConfig(jobCtx,poolConfig);if err!=nil{logger.Warn().Err(err).Msg("Synapse read-only DB connection failed; message counts disabled")}else if err=synapseDB.Ping(jobCtx);err!=nil{logger.Warn().Err(err).Msg("Synapse DB unavailable; message counts disabled");synapseDB.Close();synapseDB=nil}else{defer synapseDB.Close()}}}
