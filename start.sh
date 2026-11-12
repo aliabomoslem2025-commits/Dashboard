@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ROOT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd -- "$(dirname -- "$0")" && pwd)"
 cd "$ROOT_DIR"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; RESET='\033[0m'
-info() { printf "${GREEN}[INFO]${RESET} %s\\n" "$*"; }
-warn() { printf "${YELLOW}[WARN]${RESET} %s\\n" "$*"; }
-die()  { printf "${RED}[ERROR]${RESET} %s\\n" "$*" >&2; exit 1; }
+info() { printf "$GREEN[INFO]$RESET %s\n" "$*"; }
+warn() { printf "$YELLOW[WARN]$RESET %s\n" "$*"; }
+die()  { printf "$RED[ERROR]$RESET %s\n" "$*" >&2; exit 1; }
 
-# Host requirements are Docker Engine, Docker Compose, OpenSSL, and standard shell tools.
+# Host requirements: Docker Engine, Docker Compose, OpenSSL, and standard shell tools.
 # Go, Node.js, PHP, Composer, and all language build tools run only inside containers.
 for cmd in docker openssl awk; do
   command -v "$cmd" >/dev/null 2>&1 || die "Required command not found: $cmd"
@@ -54,7 +54,7 @@ synapse_url="$(get_env SYNAPSE_BASE_URL || true)"
 synapse_token="$(get_env SYNAPSE_ADMIN_TOKEN || true)"
 
 if [[ -z "$app_key" ]]; then
-  app_key="base64:$(openssl rand -base64 32 | tr -d '\\n')"
+  app_key="base64:$(openssl rand -base64 32 | tr -d '\n')"
   set_env APP_KEY "$app_key"
 fi
 if [[ -z "$db_password" || "$db_password" == "change-this-db-password" ]]; then
@@ -73,7 +73,7 @@ set_env SYNAPSE_BASE_URL "$synapse_url"
 
 if [[ -z "$synapse_token" || "$synapse_token" == "change-this-synapse-admin-token" ]]; then
   read -r -s -p "Synapse Admin access token: " synapse_token
-  printf "\\n"
+  printf "\n"
 fi
 [[ -n "$synapse_token" ]] || die "SYNAPSE_ADMIN_TOKEN is required."
 set_env SYNAPSE_ADMIN_TOKEN "$synapse_token"
@@ -107,15 +107,15 @@ for attempt in $(seq 1 60); do
   sleep 2
 done
 
-printf "\\n"
+printf "\n"
 docker compose ps
-printf "\\n"
+printf "\n"
 info "Dashboard startup sequence completed."
-printf "Dashboard: %s\\n" "$(get_env APP_URL)"
-printf "\\nUseful commands:\\n"
-printf "  docker compose logs -f\\n"
-printf "  docker compose ps\\n"
-printf "  docker compose restart\\n"
-printf "  docker compose down\\n"
+printf "Dashboard: %s\n" "$(get_env APP_URL)"
+printf "\nUseful commands:\n"
+printf "  docker compose logs -f\n"
+printf "  docker compose ps\n"
+printf "  docker compose restart\n"
+printf "  docker compose down\n"
 warn "Synapse must be reachable from the mx-core container. Do not use localhost unless Synapse runs inside that same container."
 warn "Keep .env private. Do not commit it or share its secrets."
