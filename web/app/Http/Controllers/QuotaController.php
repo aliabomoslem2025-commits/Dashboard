@@ -15,8 +15,10 @@ class QuotaController {
   try {
    $stats=$this->core->request('GET','/api/v1/media/stats',['limit'=>100,'order_by'=>'media_length','dir'=>'b']);
    $rawUsers=$stats['users']??[];
+   $mediaStatsError=null;
   } catch(\\Throwable $e) {
    $rawUsers=[];
+   $mediaStatsError='آمار مدیای Synapse در دسترس نیست.';
   }
   $seen=[];
   $mediaUsers=[];
@@ -43,7 +45,8 @@ class QuotaController {
   }
   return Inertia::render('Media/Index',[
    'quotas'=>$quotas,'usage'=>$usage,'mediaUsers'=>$mediaUsers,
-   'totalQuota'=>(int)DB::table('user_quotas')->sum('max_total_bytes')
+   'totalQuota'=>(int)array_sum(array_map(fn($u)=>$u['max_total_bytes'],$mediaUsers)),
+   'mediaStatsError'=>$mediaStatsError
   ]);
  }
  public function store(Request $r) { Gate::authorize('synapse-users-update');$data=$r->validate(['user_id'=>'required|string|max:255','max_total_bytes'=>'required|integer|min:0','max_file_bytes'=>'required|integer|min:0','period'=>'required|in:lifetime,day,week,month']);DB::table('user_quotas')->updateOrInsert(['user_id'=>$data['user_id']],$data+['updated_by'=>$r->user()->id,'created_at'=>now(),'updated_at'=>now()]);$this->audit->record($r,'media.quota.update','matrix_user',$data['user_id'],array_diff_key($data,['user_id'=>true]));return back()->with('success','سهمیه ذخیره شد.');}
