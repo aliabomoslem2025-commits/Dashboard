@@ -51,7 +51,7 @@ class SynapseUserController {
   Gate::authorize('moderate',[SynapseUser::class,$userID]);$ban=!$request->isMethod('delete')&&!$request->boolean('remove');$this->core->request($ban?'POST':'DELETE','/api/v1/users/'.$this->id($userID).'/shadow-ban');$this->audit->record($request,$ban?'synapse.user.shadow_ban':'synapse.user.shadow_unban','matrix_user',$userID);return back()->with('success',$ban?'Shadow Ban فعال شد.':'Shadow Ban برداشته شد.');
  }
  public function ratelimit(Request $request,string $userID) {
-  Gate::authorize('update',[SynapseUser::class,$userID]);if($request->boolean('remove')){$this->core->request('DELETE','/api/v1/users/'.$this->id($userID).'/ratelimit');$payload=['removed'=>true];}else{$payload=$request->validate(['messages_per_second'=>['required','integer','min:0'],'burst_count'=>['required','integer','min:0']]);$this->core->request('POST','/api/v1/users/'.$this->id($userID).'/ratelimit',[],$payload);}
+  Gate::authorize('update',[SynapseUser::class,$userID]);if($request->isMethod('delete')||$request->boolean('remove')){$this->core->request('DELETE','/api/v1/users/'.$this->id($userID).'/ratelimit');$payload=['removed'=>true];}else{$payload=$request->validate(['messages_per_second'=>['required','integer','min:0'],'burst_count'=>['required','integer','min:0']]);$this->core->request('POST','/api/v1/users/'.$this->id($userID).'/ratelimit',[],$payload);}
   $this->audit->record($request,'synapse.user.ratelimit','matrix_user',$userID,$payload);return back()->with('success','محدودیت نرخ به‌روزرسانی شد.');
  }
  public function deleteDevice(Request $request,string $userID,string $deviceID) {
