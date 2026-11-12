@@ -1,5 +1,5 @@
 package httpapi
-import("context";"encoding/json";"io";"net/http";"net/url";"strconv";"time";"github.com/go-chi/chi/v5")
+import("context";"encoding/json";"fmt";"io";"net/http";"net/url";"strconv";"strings";"time";"github.com/go-chi/chi/v5")
 func segment(v string)string{return url.PathEscape(v)}
 func(h *Handler)proxy(w http.ResponseWriter,r *http.Request,method,path string){ctx,cancel:=context.WithTimeout(r.Context(),20*time.Second);defer cancel();var body []byte;if r.Body!=nil{b,err:=io.ReadAll(http.MaxBytesReader(w,r.Body,2<<20));if err!=nil{write(w,413,envelope{OK:false,Error:&apiError{Code:"request_too_large",Message:"Request body exceeds 2 MiB"}});return};body=b};status,data,err:=h.synapse.AdminRequest(ctx,method,path,r.URL.Query(),body);if err!=nil{code:="synapse_error";msg:="Synapse Admin API request failed";var remote map[string]any;if json.Unmarshal(data,&remote)==nil{if s,ok:=remote["error"].(string);ok&&s!=""{msg=s};if s,ok:=remote["errcode"].(string);ok&&s!=""{code=s}};h.logger.Warn().Err(err).Str("path",path).Int("status",status).Msg("Synapse Admin API request failed");if status==0||status<400||status>599{status=http.StatusBadGateway};write(w,status,envelope{OK:false,Error:&apiError{Code:code,Message:msg}});return};var payload any;if len(data)>0&&json.Unmarshal(data,&payload)!=nil{payload=string(data)};write(w,status,envelope{OK:true,Data:payload})}
 func(h *Handler)RegisterAdminRoutes(r chi.Router){
@@ -37,5 +37,27 @@ func(h *Handler)RegisterAdminRoutes(r chi.Router){
 func pickQuery(q url.Values,keys []string)url.Values{out:=url.Values{};for _,k:=range keys{for _,v:=range q[k]{out.Add(k,v)}};return out}
 func validateListQuery(w http.ResponseWriter,r *http.Request,orders,boolKeys,textKeys []string)(url.Values,bool){q:=r.URL.Query();if raw:=q.Get("from");raw!=""{if _,e:=strconv.ParseUint(raw,10,64);e!=nil{write(w,400,envelope{OK:false,Error:&apiError{Code:"invalid_from",Message:"from must be a non-negative numeric pagination token"}});return nil,false}};limit:=50;if raw:=q.Get("limit");raw!=""{n,e:=strconv.Atoi(raw);if e!=nil||n<1||n>500{write(w,400,envelope{OK:false,Error:&apiError{Code:"invalid_limit",Message:"limit must be between 1 and 500"}});return nil,false};limit=n};q.Set("limit",strconv.Itoa(limit));if d:=q.Get("dir");d!=""&&d!="f"&&d!="b"{write(w,400,envelope{OK:false,Error:&apiError{Code:"invalid_direction",Message:"dir must be f or b"}});return nil,false};if o:=q.Get("order_by");o!=""{found:=false;for _,v:=range orders{if o==v{found=true;break}};if !found{write(w,400,envelope{OK:false,Error:&apiError{Code:"invalid_order_by",Message:"Unsupported order_by value"}});return nil,false}};for _,k:=range boolKeys{if raw:=q.Get(k);raw!=""{if _,e:=strconv.ParseBool(raw);e!=nil{write(w,400,envelope{OK:false,Error:&apiError{Code:"invalid_filter",Message:k+" must be true or false"}});return nil,false}}};for _,k:=range textKeys{if len(q.Get(k))>255{write(w,400,envelope{OK:false,Error:&apiError{Code:"invalid_search",Message:k+" must be at most 255 characters"}});return nil,false}};return q,true}
 func(h *Handler)listUsers(w http.ResponseWriter,r *http.Request){q,ok:=validateListQuery(w,r,[]string{"name","is_guest","admin","user_type","deactivated","shadow_banned","displayname","avatar_url","creation_ts","last_seen_ts"},[]string{"guests","admins","deactivated","locked"},[]string{"name","user_id"});if !ok{return};r.URL.RawQuery=pickQuery(q,[]string{"from","limit","name","user_id","guests","admins","deactivated","locked","order_by","dir"}).Encode();h.proxy(w,r,http.MethodGet,"/_synapse/admin/v2/users")}
-func(h *Handler)listRooms(w http.ResponseWriter,r *http.Request){q,ok:=validateListQuery(w,r,[]string{"name","canonical_alias","joined_members","joined_local_members","version","creator","encryption","federatable","public","join_rules","guest_access","history_visibility","state_events","size"},[]string{"public_rooms","empty_rooms"},[]string{"search_term"});if !ok{return};if q.Get("order_by")=="size"{r.URL.RawQuery="";h.proxy(w,r,http.MethodGet,"/_synapse/admin/v1/statistics/database/rooms");return};r.URL.RawQuery=pickQuery(q,[]string{"from","limit","search_term","order_by","dir","public_rooms","empty_rooms"}).Encode();h.proxy(w,r,http.MethodGet,"/_synapse/admin/v1/rooms")}
+func(h *Handler)listRooms(w http.ResponseWriter,r *http.Request){
+ q,ok:=validateListQuery(w,r,[]string{"name","canonical_alias","joined_members","joined_local_members","version","creator","encryption","federatable","public","join_rules","guest_access","history_visibility","state_events","size"},[]string{"public_rooms","empty_rooms"},[]string{"search_term"});if !ok{return}
+ if q.Get("order_by")=="size"{h.listLargestRooms(w,r,q.Get("search_term"));return}
+ r.URL.RawQuery=pickQuery(q,[]string{"from","limit","search_term","order_by","dir","public_rooms","empty_rooms"}).Encode()
+ h.proxy(w,r,http.MethodGet,"/_synapse/admin/v1/rooms")
+}
+func(h *Handler)listLargestRooms(w http.ResponseWriter,r *http.Request,searchTerm string){
+ ctx,cancel:=context.WithTimeout(r.Context(),30*time.Second);defer cancel()
+ _,raw,err:=h.synapse.AdminRequest(ctx,http.MethodGet,"/_synapse/admin/v1/statistics/database/rooms",nil,nil)
+ if err!=nil{write(w,http.StatusBadGateway,envelope{OK:false,Error:&apiError{Code:"room_size_unavailable",Message:"Unable to retrieve largest room size estimates"}});return}
+ var result struct{Rooms []struct{RoomID string `json:"room_id"`;EstimatedSize int64 `json:"estimated_size"`} `json:"rooms"`}
+ if err=json.Unmarshal(raw,&result);err!=nil{write(w,http.StatusBadGateway,envelope{OK:false,Error:&apiError{Code:"invalid_synapse_response",Message:"Invalid room size statistics response"}});return}
+ rooms:=make([]map[string]any,0,len(result.Rooms))
+ for _,item:=range result.Rooms{
+  if item.RoomID==""{continue}
+  room:=map[string]any{"room_id":item.RoomID,"estimated_size":item.EstimatedSize}
+  _,detail,detailErr:=h.synapse.AdminRequest(ctx,http.MethodGet,"/_synapse/admin/v1/rooms/"+segment(item.RoomID),nil,nil)
+  if detailErr==nil{var fields map[string]any;if json.Unmarshal(detail,&fields)==nil{for k,v:=range fields{room[k]=v}}}
+  if searchTerm!=""&&!strings.Contains(strings.ToLower(item.RoomID+" "+fmt.Sprint(room["name"])),strings.ToLower(searchTerm)){continue}
+  rooms=append(rooms,room)
+ }
+ write(w,http.StatusOK,envelope{OK:true,Data:map[string]any{"rooms":rooms,"total_rooms":len(rooms),"next_batch":nil,"size_sort_limited":true}})
+}}
 func(h *Handler)mediaStats(w http.ResponseWriter,r *http.Request){q,ok:=validateListQuery(w,r,[]string{"user_id","displayname","media_length","media_count"},nil,[]string{"search_term"});if !ok{return};r.URL.RawQuery=pickQuery(q,[]string{"from","limit","search_term","order_by","dir"}).Encode();h.proxy(w,r,http.MethodGet,"/_synapse/admin/v1/statistics/users/media")}
