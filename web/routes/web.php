@@ -48,5 +48,6 @@ Route::middleware(['auth','can:view-dashboard'])->group(function(){
  Route::get('/audit-logs',[AuditLogController::class,'index'])->name('audit.index');
  Route::get('/broadcasts',[BroadcastController::class,'index'])->name('broadcasts.index');
  Route::post('/broadcasts',[BroadcastController::class,'store'])->name('broadcasts.store');
+ Route::post('/broadcasts/send-one',[BroadcastController::class,'sendOne'])->name('broadcasts.send-one');
  Route::get('/broadcasts/{id}',[BroadcastController::class,'show'])->name('broadcasts.show');
 });
