@@ -5,6 +5,7 @@ use App\Services\CoreClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 class BroadcastController {
  public function __construct(private AuditLogger $audit,private CoreClient $core) {}
