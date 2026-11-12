@@ -11,3 +11,15 @@ func TestCreateMediaThenUnauthenticatedPutRetainsOwner(t *testing.T){up:=httptes
 
 func TestQuotaUploadIsProxiedAndUsageReserved(t *testing.T){up:=httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){if r.URL.Path!="/_matrix/media/v3/upload"{t.Errorf("unexpected path %s",r.URL.Path)};if r.Header.Get("Authorization")!="Bearer test"{t.Error("authorization not forwarded")};b,e:=io.ReadAll(r.Body);if e!=nil||len(b)!=20{t.Errorf("body length=%d err=%v",len(b),e)};w.Header().Set("Content-Type","application/json");w.WriteHeader(200);_,_=w.Write([]byte(`{"content_uri":"mxc://example.org/uploaded"}`))}));defer up.Close();target,_:=url.Parse(up.URL);cache:=&fakeCache{usage:10,ok:true};g:=New(target,fakeQuota{&Quota{MaxTotalBytes:100,MaxFileBytes:50,Period:"lifetime"}},cache,fakeResolver{});req:=httptest.NewRequest(http.MethodPost,"/_matrix/media/v3/upload",strings.NewReader(strings.Repeat("x",20)));req.Header.Set("Authorization","Bearer test");req.ContentLength=20;w:=httptest.NewRecorder();g.ServeHTTP(w,req);if w.Code!=200{t.Fatalf("want 200, got %d: %s",w.Code,w.Body.String())};if cache.usage!=30{t.Fatalf("want usage 30, got %d",cache.usage)}}
 func TestFailedQuotaUploadReleasesReservation(t *testing.T){up:=httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){w.WriteHeader(500)}));defer up.Close();target,_:=url.Parse(up.URL);cache:=&fakeCache{usage:10,ok:true};g:=New(target,fakeQuota{&Quota{MaxTotalBytes:100,MaxFileBytes:50,Period:"lifetime"}},cache,fakeResolver{});req:=httptest.NewRequest(http.MethodPost,"/_matrix/media/v3/upload",strings.NewReader(strings.Repeat("x",20)));req.Header.Set("Authorization","Bearer test");req.ContentLength=20;w:=httptest.NewRecorder();g.ServeHTTP(w,req);if w.Code!=500{t.Fatalf("want upstream 500, got %d",w.Code)};if cache.usage!=10{t.Fatalf("reservation not released: %d",cache.usage)}}
+
+func TestRecognizesSupportedUploadAndCreateRoutes(t *testing.T) {
+ cases:=[]struct{method,path string;want bool}{
+  {http.MethodPost,"/_matrix/media/r0/upload",true},
+  {http.MethodPost,"/_matrix/media/v1/upload",true},
+  {http.MethodPost,"/_matrix/media/v3/upload",true},
+  {http.MethodPut,"/_matrix/media/v3/upload/example.org/id",true},
+  {http.MethodPost,"/_matrix/client/v1/media/upload",false},
+  {http.MethodGet,"/_matrix/media/v3/download/example.org/id",false},
+ }
+ for _,tc:=range cases {r:=httptest.NewRequest(tc.method,tc.path,nil);if got:=isUpload(r);got!=tc.want{t.Errorf("%s %s: got %v want %v",tc.method,tc.path,got,tc.want)}}
+}

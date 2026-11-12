@@ -1,0 +1,17 @@
+package httpapi
+
+import (
+ "net/http"
+ "net/http/httptest"
+ "testing"
+ "time"
+ "matrix-dashboard/core/internal/synapse"
+ "github.com/go-chi/chi/v5"
+ "github.com/rs/zerolog"
+)
+func TestAdminRouteMappings(t *testing.T) {
+ cases:=[]struct{method,route,upstream string}{
+ {http.MethodGet,"/api/v1/users/@alice:example.org","/_synapse/admin/v2/users/@alice:example.org"},{http.MethodPut,"/api/v1/users/@alice:example.org","/_synapse/admin/v2/users/@alice:example.org"},{http.MethodPost,"/api/v1/users/@alice:example.org/reset-password","/_synapse/admin/v1/reset_password/@alice:example.org"},{http.MethodPost,"/api/v1/users/@alice:example.org/deactivate","/_synapse/admin/v1/deactivate/@alice:example.org"},{http.MethodPut,"/api/v1/users/@alice:example.org/suspend","/_synapse/admin/v1/suspend/@alice:example.org"},{http.MethodPost,"/api/v1/users/@alice:example.org/shadow-ban","/_synapse/admin/v1/users/@alice:example.org/shadow_ban"},{http.MethodDelete,"/api/v1/users/@alice:example.org/shadow-ban","/_synapse/admin/v1/users/@alice:example.org/shadow_ban"},{http.MethodGet,"/api/v1/users/@alice:example.org/ratelimit","/_synapse/admin/v1/users/@alice:example.org/override_ratelimit"},{http.MethodPost,"/api/v1/users/@alice:example.org/ratelimit","/_synapse/admin/v1/users/@alice:example.org/override_ratelimit"},{http.MethodDelete,"/api/v1/users/@alice:example.org/ratelimit","/_synapse/admin/v1/users/@alice:example.org/override_ratelimit"},{http.MethodGet,"/api/v1/users/@alice:example.org/devices","/_synapse/admin/v2/users/@alice:example.org/devices"},{http.MethodDelete,"/api/v1/users/@alice:example.org/devices/PHONE","/_synapse/admin/v2/users/@alice:example.org/devices/PHONE"},{http.MethodGet,"/api/v1/users/@alice:example.org/joined-rooms","/_synapse/admin/v1/users/@alice:example.org/joined_rooms"},{http.MethodGet,"/api/v1/users/@alice:example.org/whois","/_synapse/admin/v1/whois/@alice:example.org"},{http.MethodGet,"/api/v1/users/@alice:example.org/media","/_synapse/admin/v1/users/@alice:example.org/media"},{http.MethodGet,"/api/v1/rooms/!room:example.org","/_synapse/admin/v1/rooms/!room:example.org"},{http.MethodGet,"/api/v1/rooms/!room:example.org/members","/_synapse/admin/v1/rooms/!room:example.org/members"},{http.MethodGet,"/api/v1/rooms/!room:example.org/state","/_synapse/admin/v1/rooms/!room:example.org/state"},{http.MethodGet,"/api/v1/rooms/!room:example.org/block","/_synapse/admin/v1/rooms/!room:example.org/block"},{http.MethodPut,"/api/v1/rooms/!room:example.org/block","/_synapse/admin/v1/rooms/!room:example.org/block"},{http.MethodDelete,"/api/v1/rooms/!room:example.org","/_synapse/admin/v2/rooms/!room:example.org"},{http.MethodPost,"/api/v1/rooms/!room:example.org/make-admin","/_synapse/admin/v1/rooms/!room:example.org/make_room_admin"},
+ }
+ for _,tc:=range cases {t.Run(tc.method+" "+tc.route,func(t *testing.T){up:=httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter,r *http.Request){if r.URL.Path!=tc.upstream{t.Errorf("got %q want %q",r.URL.Path,tc.upstream)};w.Header().Set("Content-Type","application/json");_,_=w.Write([]byte("{}"))}));defer up.Close();h:=New(synapse.New(up.URL,"synapse-admin",time.Second),"core-token",zerolog.Nop());router:=chi.NewRouter();router.Group(func(r chi.Router){r.Use(h.Authenticate);h.RegisterAdminRoutes(r)});req:=httptest.NewRequest(tc.method,tc.route,nil);req.Header.Set("Authorization","Bearer core-token");rec:=httptest.NewRecorder();router.ServeHTTP(rec,req);if rec.Code<200||rec.Code>=300{t.Fatalf("unexpected response %d: %s",rec.Code,rec.Body.String())}})}
+}
