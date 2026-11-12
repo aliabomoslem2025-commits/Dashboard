@@ -3,6 +3,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use RuntimeException;
 class CoreClient { public function request(string $method,string $path,array $query=[],?array $body=null): array {
+  foreach ($query as $key => $value) { if (is_bool($value)) $query[$key] = $value ? 'true' : 'false'; }
   $request=Http::withToken(config('services.core.token'))->acceptJson()->timeout(25);
   $url=rtrim(config('services.core.url'),'/').$path;
   $response=$request->send(strtoupper($method),$url,['query'=>$query,'json'=>$body]);
