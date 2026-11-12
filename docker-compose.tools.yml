@@ -1,9 +1,9 @@
 # Optional development toolchains. No language compiler/runtime is required on the host.
 # Examples:
-#   docker compose -f docker-compose.tools.yml run --rm go-toolchain go test ./...
+#   docker compose -f docker-compose.tools.yml run --rm go-toolchain test ./...
 #   docker compose -f docker-compose.tools.yml run --rm node-toolchain npm run build
-#   docker compose -f docker-compose.tools.yml run --rm php-toolchain php -v
-#   docker compose -f docker-compose.tools.yml run --rm composer-toolchain composer validate
+#   docker compose -f docker-compose.tools.yml run --rm php-toolchain -v
+#   docker compose -f docker-compose.tools.yml run --rm composer-toolchain validate
 services:
   go-toolchain:
     image: golang:1.22-alpine
