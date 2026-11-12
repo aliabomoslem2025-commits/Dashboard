@@ -2,7 +2,7 @@
 import { Head, router, useForm } from '@inertiajs/vue3'
 import { ref } from 'vue'
 import ConfirmDialog from '../../Components/ConfirmDialog.vue'
-const props=defineProps<{broadcasts:{data:any[];total:number;current_page:number;last_page:number}}>()
+const { broadcasts }=defineProps<{broadcasts:{data:any[];total:number;current_page:number;last_page:number}}>()
 const confirmOpen=ref(false)
 const form=useForm({message:'',audience:'all',activity_category:'active',single_user_id:'',recipient_text:'',recipients:[] as string[],throttle_ms:500,max_retries:3,confirmed:false})
 const preview=()=>form.message.trim()
