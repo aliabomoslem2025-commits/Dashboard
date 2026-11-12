@@ -59,5 +59,5 @@ func(h *Handler)listLargestRooms(w http.ResponseWriter,r *http.Request,searchTer
   rooms=append(rooms,room)
  }
  write(w,http.StatusOK,envelope{OK:true,Data:map[string]any{"rooms":rooms,"total_rooms":len(rooms),"next_batch":nil,"size_sort_limited":true}})
-}}
+}
 func(h *Handler)mediaStats(w http.ResponseWriter,r *http.Request){q,ok:=validateListQuery(w,r,[]string{"user_id","displayname","media_length","media_count"},nil,[]string{"search_term"});if !ok{return};r.URL.RawQuery=pickQuery(q,[]string{"from","limit","search_term","order_by","dir"}).Encode();h.proxy(w,r,http.MethodGet,"/_synapse/admin/v1/statistics/users/media")}
