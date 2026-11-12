@@ -15,6 +15,7 @@ class AppServiceProvider extends ServiceProvider {
   Gate::policy(SynapseRoom::class,SynapseRoomPolicy::class);
   Gate::policy(Broadcast::class,BroadcastPolicy::class);
   Gate::define('synapse-users-view',fn($user)=>app(SynapseUserPolicy::class)->viewAny($user));
+  Gate::define('view-whois',fn($user)=>$user->hasAnyRole(['super_admin','admin']));
   Gate::define('synapse-users-update',fn($user)=>app(SynapseUserPolicy::class)->update($user));
   Gate::define('synapse-users-moderate',fn($user)=>app(SynapseUserPolicy::class)->moderate($user));
   Gate::define('synapse-users-delete',fn($user)=>app(SynapseUserPolicy::class)->delete($user));
