@@ -16,7 +16,7 @@ class QuotaController {
    $stats=$this->core->request('GET','/api/v1/media/stats',['limit'=>100,'order_by'=>'media_length','dir'=>'b']);
    $rawUsers=$stats['users']??[];
    $mediaStatsError=null;
-  } catch(\\Throwable $e) {
+  } catch(\Throwable $e) {
    $rawUsers=[];
    $mediaStatsError='آمار مدیای Synapse در دسترس نیست.';
   }
