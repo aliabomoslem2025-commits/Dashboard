@@ -1,0 +1,7 @@
+package synapse
+
+import("context";"encoding/json";"fmt";"io";"net/http";"net/url";"strings";"time")
+type Client struct{baseURL,token string;httpClient *http.Client}
+type ServerVersion struct{ServerVersion string `json:"server_version"`;PythonVersion string `json:"python_version"`}
+func New(baseURL,token string,timeout time.Duration)*Client{return &Client{baseURL:strings.TrimRight(baseURL,"/"),token:token,httpClient:&http.Client{Timeout:timeout}}}
+func(c *Client)ServerVersion(ctx context.Context)(ServerVersion,error){var out ServerVersion;endpoint,err:=url.JoinPath(c.baseURL,"/_synapse/admin/v1/server_version");if err!=nil{return out,err};var last error;for attempt:=0;attempt<2;attempt++{req,e:=http.NewRequestWithContext(ctx,http.MethodGet,endpoint,nil);if e!=nil{return out,e};req.Header.Set("Authorization","Bearer "+c.token);resp,e:=c.httpClient.Do(req);if e==nil{body,re:=io.ReadAll(io.LimitReader(resp.Body,1<<20));resp.Body.Close();if re!=nil{last=re}else if resp.StatusCode>=500&&attempt==0{last=fmt.Errorf("Synapse HTTP %d",resp.StatusCode)}else if resp.StatusCode<200||resp.StatusCode>=300{return out,fmt.Errorf("Synapse admin API HTTP %d",resp.StatusCode)}else if e=json.Unmarshal(body,&out);e!=nil{return out,fmt.Errorf("invalid Synapse response: %w",e)}else{return out,nil}}else{last=e};if attempt==0{time.Sleep(150*time.Millisecond)}};return out,fmt.Errorf("Synapse request failed: %w",last)}
