@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 use Inertia\Inertia;
 class BroadcastController {
  public function __construct(private AuditLogger $audit,private CoreClient $core) {}
- private function allActiveUsers(): array {$users=[];$from='0';for($page=0;$page<10000;$page++){$data=$this->core->request('GET','/api/v1/users',['from'=>$from,'limit'=>500]);foreach(($data['users']??[]) as $user){if(!empty($user['name']))$users[]=$user['name'];}$next=$data['next_token']??null;if($next===null||$next==='')break;$from=(string)$next;}return array_values(array_unique($users));}
+ private function allActiveUsers(): array {$users=[];$from='0';for($page=0;$page<10000;$page++){$data=$this->core->request('GET','/api/v1/users',['from'=>$from,'limit'=>500]);foreach(($data['users']??[]) as $user){if(!empty($user['name'])&&empty($user['deactivated']))$users[]=$user['name'];}$next=$data['next_token']??null;if($next===null||$next==='')break;$from=(string)$next;}return array_values(array_unique($users));}
  public function sendOne(Request $r){
   Gate::authorize('broadcasts-create');
   $data=$r->validate(['user_id'=>['required','string','regex:/^@[^\\s]+:[^\\s]+$/','max:255'],'message'=>['required','string','max:4000']]);
