@@ -38,7 +38,7 @@ func (h *Handler) sendServerNotice(w http.ResponseWriter, r *http.Request) {
 		UserID  string         `json:"user_id"`
 		Content map[string]any `json:"content"`
 	}
-	if err := json.Unmarshal(body, &payload); err != nil || !strings.HasPrefix(payload.UserID, "@") || !strings.Contains(payload.UserID, ":") || strings.TrimSpace(fmtString(payload.Content["body"])) == "" {
+	if err := json.Unmarshal(body, &payload); err != nil || !strings.HasPrefix(payload.UserID, "@") || !strings.Contains(payload.UserID, ":") || strings.TrimSpace(noticeString(payload.Content["body"])) == "" {
 		write(w, http.StatusBadRequest, envelope{OK: false, Error: &apiError{Code: "invalid_notice", Message: "user_id and content.body are required"}})
 		return
 	}
@@ -62,7 +62,7 @@ func (h *Handler) sendServerNotice(w http.ResponseWriter, r *http.Request) {
 	write(w, status, envelope{OK: true, Data: result})
 }
 
-func fmtString(value any) string {
+func noticeString(value any) string {
 	if value == nil { return "" }
 	if text, ok := value.(string); ok { return text }
 	return ""
