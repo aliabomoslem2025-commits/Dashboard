@@ -72,3 +72,17 @@ func TestUserListRejectsInvalidPaginationAndFilters(t *testing.T) {
  rec:=httptest.NewRecorder();router.ServeHTTP(rec,req)
  if rec.Code!=400 { t.Fatalf("expected 400, got %d: %s",rec.Code,rec.Body.String()) }
 }
+
+func TestUserPayloadValidation(t *testing.T) {
+ cases:=[]struct{kind string;body string;wantErr bool}{
+  {"user", "{\"displayname\":\"Alice\",\"admin\":false,\"deactivated\":false}", false},
+  {"user", "{\"admin\":\"yes\"}", true},
+  {"reset_password", "{}", true},
+  {"reset_password", "{\"new_password\":\"short\"}", true},
+  {"deactivate", "{\"erase\":false}", false},
+  {"suspend", "{}", true},
+  {"ratelimit", "{\"messages_per_second\":-1}", true},
+  {"ratelimit", "{\"messages_per_second\":0,\"burst_count\":5}", false},
+ }
+ for _,tc:=range cases { t.Run(tc.kind+"_"+tc.body,func(t *testing.T){err:=validateUserPayload(tc.kind,[]byte(tc.body));if (err!=nil)!=tc.wantErr{t.Fatalf("error=%v wantErr=%v",err,tc.wantErr)}}) }
+}

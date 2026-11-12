@@ -42,7 +42,7 @@ class SynapseUserController {
   Gate::authorize('update',[SynapseUser::class,$userID]);$data=$request->validate(['new_password'=>['required','string','min:12','max:255'],'logout_devices'=>['sometimes','boolean']]);$this->core->request('POST','/api/v1/users/'.$this->id($userID).'/reset-password',[],$data);$this->audit->record($request,'synapse.user.reset_password','matrix_user',$userID,['logout_devices'=>$data['logout_devices']??true]);return back()->with('success','گذرواژه بازنشانی شد.');
  }
  public function deactivate(Request $request,string $userID) {
-  Gate::authorize('moderate',[SynapseUser::class,$userID]);$data=$request->validate(['erase'=>['sometimes','boolean']]);$this->core->request('POST','/api/v1/users/'.$this->id($userID).'/deactivate',[],$data);$this->audit->record($request,'synapse.user.deactivate','matrix_user',$userID,$data);return back()->with('success','حساب غیرفعال شد.');
+  Gate::authorize('moderate',[SynapseUser::class,$userID]);$data=$request->validate(['erase'=>['sometimes','boolean']]);$data['erase']??=false;$this->core->request('POST','/api/v1/users/'.$this->id($userID).'/deactivate',[],$data);$this->audit->record($request,'synapse.user.deactivate','matrix_user',$userID,$data);return back()->with('success','حساب غیرفعال شد.');
  }
  public function suspend(Request $request,string $userID) {
   Gate::authorize('moderate',[SynapseUser::class,$userID]);$data=$request->validate(['suspend'=>['required','boolean']]);$this->core->request('PUT','/api/v1/users/'.$this->id($userID).'/suspend',[],$data);$this->audit->record($request,'synapse.user.suspend','matrix_user',$userID,$data);return back()->with('success','وضعیت تعلیق کاربر تغییر کرد.');

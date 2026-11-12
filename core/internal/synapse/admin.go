@@ -14,7 +14,7 @@ import (
 func (c *Client) AdminRequest(ctx context.Context, method, path string, query url.Values, body []byte) (int, []byte, error) {
  endpoint := c.baseURL + "/" + strings.TrimLeft(path, "/")
  if len(query)>0 { endpoint += "?" + query.Encode() }
- retryable := method==http.MethodGet || method==http.MethodHead || method==http.MethodPut || method==http.MethodDelete
+ retryable := method==http.MethodGet || method==http.MethodHead || method==http.MethodPut
  attempts:=1
  if retryable { attempts=3 }
  var lastStatus int
