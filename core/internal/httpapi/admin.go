@@ -1,19 +1,69 @@
 package httpapi
-import("context";"encoding/json";"fmt";"io";"net/http";"net/url";"strconv";"strings";"time";"github.com/go-chi/chi/v5")
+import("bytes";"context";"encoding/json";"fmt";"io";"net/http";"net/url";"strconv";"strings";"time";"github.com/go-chi/chi/v5")
 func segment(v string)string{return url.PathEscape(v)}
 func(h *Handler)proxy(w http.ResponseWriter,r *http.Request,method,path string){ctx,cancel:=context.WithTimeout(r.Context(),20*time.Second);defer cancel();var body []byte;if r.Body!=nil{b,err:=io.ReadAll(http.MaxBytesReader(w,r.Body,2<<20));if err!=nil{write(w,413,envelope{OK:false,Error:&apiError{Code:"request_too_large",Message:"Request body exceeds 2 MiB"}});return};body=b};status,data,err:=h.synapse.AdminRequest(ctx,method,path,r.URL.Query(),body);if err!=nil{code:="synapse_error";msg:="Synapse Admin API request failed";var remote map[string]any;if json.Unmarshal(data,&remote)==nil{if s,ok:=remote["error"].(string);ok&&s!=""{msg=s};if s,ok:=remote["errcode"].(string);ok&&s!=""{code=s}};h.logger.Warn().Err(err).Str("path",path).Int("status",status).Msg("Synapse Admin API request failed");if status==0||status<400||status>599{status=http.StatusBadGateway};write(w,status,envelope{OK:false,Error:&apiError{Code:code,Message:msg}});return};var payload any;if len(data)>0&&json.Unmarshal(data,&payload)!=nil{payload=string(data)};write(w,status,envelope{OK:true,Data:payload})}
+func validateUserPayload(kind string, body []byte) error {
+ obj:=map[string]json.RawMessage{}
+ if len(body)==0 { if kind=="deactivate"||kind=="ratelimit" { return nil }; return fmt.Errorf("JSON object body is required") }
+ if err:=json.Unmarshal(body,&obj);err!=nil||obj==nil { return fmt.Errorf("request body must be a JSON object") }
+ stringField:=func(key string,min,max int,required bool)error{
+  raw,ok:=obj[key];if !ok {if required{return fmt.Errorf("%s is required",key)};return nil}
+  var value string;if err:=json.Unmarshal(raw,&value);err!=nil{return fmt.Errorf("%s must be a string",key)}
+  if len(value)<min||len(value)>max{return fmt.Errorf("%s length must be between %d and %d",key,min,max)}
+  return nil
+ }
+ boolField:=func(key string,required bool)error{
+  raw,ok:=obj[key];if !ok {if required{return fmt.Errorf("%s is required",key)};return nil}
+  var value bool;if err:=json.Unmarshal(raw,&value);err!=nil{return fmt.Errorf("%s must be a boolean",key)}
+  return nil
+ }
+ intField:=func(key string,required bool)error{
+  raw,ok:=obj[key];if !ok {if required{return fmt.Errorf("%s is required",key)};return nil}
+  var value int64;if err:=json.Unmarshal(raw,&value);err!=nil||value<0{return fmt.Errorf("%s must be a non-negative integer",key)}
+  return nil
+ }
+ switch kind {
+ case "user":
+  allowed:=map[string]bool{"password":true,"logout_devices":true,"displayname":true,"admin":true,"deactivated":true,"locked":true}
+  if len(obj)==0{return fmt.Errorf("at least one user field is required")}
+  for key:=range obj{if !allowed[key]{return fmt.Errorf("unsupported user field: %s",key)}}
+  if raw,ok:=obj["displayname"];ok&&string(raw)!="null"{if err:=stringField("displayname",0,255,false);err!=nil{return err}}
+  if err:=stringField("password",12,255,false);err!=nil{return err}
+  for _,key:=range []string{"admin","deactivated","locked","logout_devices"}{if err:=boolField(key,false);err!=nil{return err}}
+ case "reset_password":
+  if err:=stringField("new_password",12,255,true);err!=nil{return err}
+  if err:=boolField("logout_devices",false);err!=nil{return err}
+ case "deactivate":
+  if err:=boolField("erase",false);err!=nil{return err}
+ case "suspend":
+  if err:=boolField("suspend",true);err!=nil{return err}
+ case "ratelimit":
+  if err:=intField("messages_per_second",false);err!=nil{return err}
+  if err:=intField("burst_count",false);err!=nil{return err}
+ default:
+  return fmt.Errorf("unknown validation profile")
+ }
+ return nil
+}
+func(h *Handler)proxyUserWrite(w http.ResponseWriter,r *http.Request,method,path,kind string){
+ body,err:=io.ReadAll(http.MaxBytesReader(w,r.Body,2<<20))
+ if err!=nil{write(w,413,envelope{OK:false,Error:&apiError{Code:"request_too_large",Message:"Request body exceeds 2 MiB"}});return}
+ if err=validateUserPayload(kind,body);err!=nil{write(w,400,envelope{OK:false,Error:&apiError{Code:"invalid_request",Message:err.Error()}});return}
+ r.Body=io.NopCloser(bytes.NewReader(body))
+ h.proxy(w,r,method,path)
+}
 func(h *Handler)RegisterAdminRoutes(r chi.Router){
  r.Get("/api/v1/users",h.listUsers)
  r.Get("/api/v1/media/stats",h.mediaStats)
  r.Get("/api/v1/users/{userID}",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodGet,"/_synapse/admin/v2/users/"+segment(chi.URLParam(q,"userID")))})
- r.Put("/api/v1/users/{userID}",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodPut,"/_synapse/admin/v2/users/"+segment(chi.URLParam(q,"userID")))})
- r.Post("/api/v1/users/{userID}/reset-password",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodPost,"/_synapse/admin/v1/reset_password/"+segment(chi.URLParam(q,"userID")))})
- r.Post("/api/v1/users/{userID}/deactivate",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodPost,"/_synapse/admin/v1/deactivate/"+segment(chi.URLParam(q,"userID")))})
- r.Put("/api/v1/users/{userID}/suspend",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodPut,"/_synapse/admin/v1/suspend/"+segment(chi.URLParam(q,"userID")))})
+ r.Put("/api/v1/users/{userID}",func(w http.ResponseWriter,q *http.Request){h.proxyUserWrite(w,q,http.MethodPut,"/_synapse/admin/v2/users/"+segment(chi.URLParam(q,"userID")),"user")})
+ r.Post("/api/v1/users/{userID}/reset-password",func(w http.ResponseWriter,q *http.Request){h.proxyUserWrite(w,q,http.MethodPost,"/_synapse/admin/v1/reset_password/"+segment(chi.URLParam(q,"userID")),"reset_password")})
+ r.Post("/api/v1/users/{userID}/deactivate",func(w http.ResponseWriter,q *http.Request){h.proxyUserWrite(w,q,http.MethodPost,"/_synapse/admin/v1/deactivate/"+segment(chi.URLParam(q,"userID")),"deactivate")})
+ r.Put("/api/v1/users/{userID}/suspend",func(w http.ResponseWriter,q *http.Request){h.proxyUserWrite(w,q,http.MethodPut,"/_synapse/admin/v1/suspend/"+segment(chi.URLParam(q,"userID")),"suspend")})
  r.Post("/api/v1/users/{userID}/shadow-ban",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodPost,"/_synapse/admin/v1/users/"+segment(chi.URLParam(q,"userID"))+"/shadow_ban")})
  r.Delete("/api/v1/users/{userID}/shadow-ban",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodDelete,"/_synapse/admin/v1/users/"+segment(chi.URLParam(q,"userID"))+"/shadow_ban")})
  r.Get("/api/v1/users/{userID}/ratelimit",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodGet,"/_synapse/admin/v1/users/"+segment(chi.URLParam(q,"userID"))+"/override_ratelimit")})
- r.Post("/api/v1/users/{userID}/ratelimit",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodPost,"/_synapse/admin/v1/users/"+segment(chi.URLParam(q,"userID"))+"/override_ratelimit")})
+ r.Post("/api/v1/users/{userID}/ratelimit",func(w http.ResponseWriter,q *http.Request){h.proxyUserWrite(w,q,http.MethodPost,"/_synapse/admin/v1/users/"+segment(chi.URLParam(q,"userID"))+"/override_ratelimit","ratelimit")})
  r.Delete("/api/v1/users/{userID}/ratelimit",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodDelete,"/_synapse/admin/v1/users/"+segment(chi.URLParam(q,"userID"))+"/override_ratelimit")})
  r.Get("/api/v1/users/{userID}/devices",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodGet,"/_synapse/admin/v2/users/"+segment(chi.URLParam(q,"userID"))+"/devices")})
  r.Delete("/api/v1/users/{userID}/devices/{deviceID}",func(w http.ResponseWriter,q *http.Request){h.proxy(w,q,http.MethodDelete,"/_synapse/admin/v2/users/"+segment(chi.URLParam(q,"userID"))+"/devices/"+segment(chi.URLParam(q,"deviceID")))})
