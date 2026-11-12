@@ -28,6 +28,7 @@ Route::middleware(['auth','can:view-dashboard'])->group(function(){
  Route::post('/users/{userID}/shadow-ban',[SynapseUserController::class,'shadowBan'])->name('users.shadow-ban');
  Route::delete('/users/{userID}/shadow-ban',[SynapseUserController::class,'shadowBan'])->name('users.shadow-unban');
  Route::post('/users/{userID}/ratelimit',[SynapseUserController::class,'ratelimit'])->name('users.ratelimit');
+ Route::delete('/users/{userID}/ratelimit',[SynapseUserController::class,'ratelimit'])->name('users.ratelimit.delete');
  Route::delete('/users/{userID}/devices/{deviceID}',[SynapseUserController::class,'deleteDevice'])->name('users.devices.delete');
  Route::delete('/users/{userID}/media',[SynapseUserController::class,'deleteMedia'])->name('users.media.delete');
  Route::get('/media',[QuotaController::class,'index'])->name('media.index');
