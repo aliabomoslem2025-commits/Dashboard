@@ -4,14 +4,15 @@ Laravel 12 + Inertia + Vue 3/TypeScript + Vuetify 3 dashboard with a Go mx-core 
 
 ## First run
 
-1. Copy the root .env.example to .env (or run `./start.sh`).
-2. The setup script asks for the internal Synapse URL, Matrix server name, dashboard super-admin username/password, and a short Synapse admin localpart/password.
-3. The script builds the Matrix ID as `@localpart:server-name`. The Matrix server name is not inferred from the Docker hostname.
-4. The Go service logs in to Synapse's `/_matrix/client/v3/login` endpoint, keeps the admin access token only in process memory, and refreshes it after an Admin API 401. The token is never passed to Laravel or the browser.
-5. Run `docker compose up --build -d` from the repository root if you are not using the setup script.
-6. Open `http://localhost:8080/login` and sign in with the dashboard username/password.
+1. Copy the root .env.example to .env, or run `./start.sh`.
+2. The setup script asks for the internal Synapse URL and the public Matrix server name (for example `example.com`). These are different values; do not use the Docker service hostname as the Matrix server name unless it is genuinely the Matrix ID domain.
+3. Enter the dashboard super-admin username and password. The login page accepts this username (not an email address).
+4. Enter the short Synapse administrator localpart (for example `ali`) and its password. The script constructs `@ali:example.com` from the localpart and Matrix server name.
+5. During mx-core startup, the Go service calls Synapse's `/_matrix/client/v3/login` endpoint, obtains the admin access token, and keeps it only in process memory. If an Admin API call returns HTTP 401, it logs in again and retries that request once. The token is never passed to Laravel/PHP or the browser.
+6. Run `docker compose up --build -d` from the repository root if you are not using the setup script.
+7. Open `http://localhost:8080/login` and sign in with the dashboard username/password.
 
-The legacy `SYNAPSE_ADMIN_TOKEN` remains optional for existing deployments. Prefer a dedicated Synapse administrator service account with `SYNAPSE_ADMIN_USER` and `SYNAPSE_ADMIN_PASSWORD`. Keep .env private and never commit it.
+A legacy `SYNAPSE_ADMIN_TOKEN` remains optional for existing deployments. Prefer a dedicated Synapse administrator service account with `SYNAPSE_ADMIN_USER` and `SYNAPSE_ADMIN_PASSWORD`. Keep .env private and never commit it.
 
 ## Optional data sources
 
@@ -32,5 +33,52 @@ To activate the gate, include docs/nginx-media-gate.conf in the existing Synapse
 - Media & Quotas: per-user total/file quotas, usage display, quota donut/progress, upload reverse proxy, Redis usage cache and cache invalidation after administrative media deletion.
 - Activity: hourly collection of last-seen, 30-day message counts and media usage; configurable heavy-active/active/low-active/dormant/suspicious categories.
 - Metrics: 15-second CPU/RAM/disk/database/user/room/online/Prometheus samples, seven-day metric retention, SSE stream and configurable alerts.
-- Broadcast: queued server notices to one user, all active users, or an activity category, with throttle, retry, recipient status, progress and confirmation.
-- Session login with dashboard username, role/policy gates, audit log persistence, shared RTL layout and persistent light/dark theme.
+- Broadcast: queued server notices to one user, all active users, or an activity category; throttle, retry, recipient status, progress and confirmation.
+- Session login with username, role/policy gates, audit log persistence, shared RTL layout and persistent light/dark theme.
+
+## Verification and known boundaries
+
+- Go unit and integration tests run in CI. The Media Gate integration test uses a real Redis service and a test Synapse upstream.
+- CI checks PHP syntax, builds the Vue application, validates Docker Compose and builds the containers.
+- docs/SYNAPSE_ADMIN_API.md records the Synapse routes checked against the current v1.163 documentation.
+- The repository does not reveal which Synapse version is installed in your environment. Connect the actual server, then compare the version shown at /server with the API compatibility notes before enabling version-sensitive operations.
+- Role-management screens and a complete interactive component/style guide remain outside this implementation stage.
+
+## Media Gate reverse-proxy wiring
+
+The Media Gate listens on host loopback port 8082. It is **not** automatically inserted into your existing Synapse reverse proxy. Route the Matrix media namespace to it at the public reverse proxy, for example:
+
+```nginx
+location ^~ /_matrix/media/ {
+    proxy_pass http://127.0.0.1:8082;
+    proxy_http_version 1.1;
+    proxy_request_buffering off;
+    proxy_buffering off;
+    client_max_body_size 0;
+    proxy_read_timeout 300s;
+}
+```
+
+Keep the rest of `/_matrix/` routed to Synapse as before. Set `SYNAPSE_BASE_URL` to Synapse's **internal direct listener** (for example `http://synapse:8008`), not the public hostname whose media paths now route back to the gate; otherwise the proxy can loop. Do not expose port 8082 publicly. Use a dedicated read-only PostgreSQL account for `SYNAPSE_DB_URL`.
+
+## Deployment diagnosis and safe repair
+
+A legacy database may have been created before the `users.is_active` column was added to the original users migration. Laravel will not rerun an already-recorded migration after its source file changes. The additive migration `2026_11_14_094720_add_is_active_to_users_table.php` repairs that schema without rebuilding the database or deleting existing users.
+
+From the repository root, run:
+
+```bash
+sudo bash scripts/diagnose-and-repair.sh
+```
+
+The script synchronizes the additive migration into the running web container, applies only that migration, checks the configured administrator, activates that account and ensures its `super_admin` role is attached. It does not change the administrator password unless explicitly requested:
+
+```bash
+sudo bash scripts/diagnose-and-repair.sh --reset-admin-password
+```
+
+That option uses `INITIAL_ADMIN_PASSWORD` from the Compose environment. Do not print or share the value.
+
+The script also runs the Go Media Gate and Synapse tests against a newly created, temporary Redis container. The integration test calls `FLUSHDB`, so the test Redis is deliberately isolated from the application's production Redis and is removed when the script exits. To skip Go tests, pass `--skip-go-tests`.
+
+The script does not reset PostgreSQL, delete users, expose secrets, or commit the root `.env` file. Back up the database before production maintenance.
