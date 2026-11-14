@@ -59,3 +59,26 @@ location ^~ /_matrix/media/ {
 ```
 
 Keep the rest of `/_matrix/` routed to Synapse as before. Set `SYNAPSE_BASE_URL` to Synapse's **internal direct listener** (for example `http://synapse:8008`), not the public hostname whose media paths now route back to the gate; otherwise the proxy can loop. Do not expose port 8082 publicly. Use a dedicated read-only PostgreSQL account for `SYNAPSE_DB_URL`.
+
+
+## Deployment diagnosis and safe repair
+
+A legacy database may have been created before the `users.is_active` column was added to the original users migration. Laravel will not rerun an already-recorded migration after its source file changes. The additive migration `2026_11_14_094720_add_is_active_to_users_table.php` repairs that schema without rebuilding the database or deleting existing users.
+
+From the repository root, run:
+
+```bash
+sudo bash scripts/diagnose-and-repair.sh
+```
+
+The script synchronizes the additive migration into the running web container, applies only that migration, checks the configured administrator, activates that account and ensures its `super_admin` role is attached. It does not change the administrator password unless explicitly requested:
+
+```bash
+sudo bash scripts/diagnose-and-repair.sh --reset-admin-password
+```
+
+That option uses `INITIAL_ADMIN_PASSWORD` from the Compose environment. Do not print or share the value.
+
+The script also runs the Go Media Gate and Synapse tests against a newly created, temporary Redis container. The integration test calls `FLUSHDB`, so the test Redis is deliberately isolated from the application's production Redis and is removed when the script exits. To skip Go tests, pass `--skip-go-tests`.
+
+The script does not reset PostgreSQL, delete users, expose secrets, or commit the root `.env` file. Back up the database before production maintenance.
