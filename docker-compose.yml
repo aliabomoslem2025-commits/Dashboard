@@ -34,6 +34,9 @@ services:
     restart: unless-stopped
   mx-core:
     build: ./core
+    networks:
+      - default
+      - synapse_link
     environment:
       CORE_HTTP_ADDR: ":8081"
       MEDIA_GATE_ADDR: ":8082"
@@ -75,3 +78,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+networks:
+  synapse_link:
+    external: true
+    name: ${SYNAPSE_DOCKER_NETWORK:-dashboard_synapse_link}
