@@ -5,7 +5,7 @@ cd "$ROOT_DIR"
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; RESET='\033[0m'
 info(){ printf "%b[INFO]%b %s\n" "$GREEN" "$RESET" "$*"; }
 warn(){ printf "%b[WARN]%b %s\n" "$YELLOW" "$RESET" "$*"; }
-die(){ printf "%b[ERROR]%b %s\n' "$RED" "$RESET" "$*" >&2; exit 1; }
+die(){ printf "%b[ERROR]%b %s\n" "$RED" "$RESET" "$*" >&2; exit 1; }
 for cmd in docker openssl awk grep sed; do command -v "$cmd" >/dev/null 2>&1 || die "Required command not found: $cmd"; done
 docker compose version >/dev/null 2>&1 || die "Docker Compose plugin is required."
 [[ -f docker-compose.yml ]] || die "docker-compose.yml not found."
