@@ -50,7 +50,7 @@ func newClient(baseURL, token, username, password string, timeout time.Duration)
 		httpClient: &http.Client{Timeout: timeout}}
 }
 
-func (c *Client) currentToken() string {
+func (c *Client) Authenticate(ctx context.Context) error {\n\t_, err := c.tokenForRequest(ctx)\n\treturn err\n}\n\nfunc (c *Client) currentToken() string {
 	c.tokenMu.RLock(); defer c.tokenMu.RUnlock()
 	return c.token
 }
