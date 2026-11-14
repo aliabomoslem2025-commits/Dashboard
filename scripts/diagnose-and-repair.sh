@@ -194,7 +194,7 @@ echo 'ADMIN_REPAIR_OK';
 PHP
 )"
 
-ADMIN_OUTPUT="$(REPAIR_RESET_ADMIN_PASSWORD="$RESET_ADMIN_PASSWORD" dc exec -T web php artisan tinker --execute="$ADMIN_CODE" 2>&1)" || {
+ADMIN_OUTPUT="$(dc exec -e REPAIR_RESET_ADMIN_PASSWORD="$RESET_ADMIN_PASSWORD" -T web php artisan tinker --execute="$ADMIN_CODE" 2>&1)" || {
   echo "$ADMIN_OUTPUT"
   fail "Administrator repair command failed."
   exit 1
