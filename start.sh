@@ -87,7 +87,13 @@ else
   }
   synapse_host="synapse"
 fi
-synapse_url="http://${synapse_host}:8008"
+exposed_ports="$(docker inspect -f '{{range $port, $_ := .Config.ExposedPorts}}{{println $port}}{{end}}' "$synapse_container")"
+synapse_port="8008"
+if ! grep -qx '8008/tcp' <<<"$exposed_ports"; then
+  mapfile -t tcp_ports < <(awk -F/ '$2=="tcp" {print $1}' <<<"$exposed_ports")
+  if [[ ${#tcp_ports[@]} -eq 1 ]]; then synapse_port="${tcp_ports[0]}"; fi
+fi
+synapse_url="http://${synapse_host}:${synapse_port}"
 set_env SYNAPSE_DOCKER_CONTAINER "$synapse_name"
 set_env SYNAPSE_DOCKER_NETWORK "$synapse_network"
 set_env SYNAPSE_BASE_URL "$synapse_url"
