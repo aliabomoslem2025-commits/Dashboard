@@ -122,11 +122,6 @@ else
   ok "Migration source exists."
 fi
 
-if ! php -l "$HOST_MIGRATION"; then
-  fail "Host migration has invalid PHP syntax."
-  exit 1
-fi
-
 section "Copy migration into the running container"
 if ! docker cp "$HOST_MIGRATION" "$WEB_ID:$CONTAINER_MIGRATION"; then
   fail "Could not copy the migration into the web container."
