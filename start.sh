@@ -13,11 +13,11 @@ docker compose version >/dev/null 2>&1 || die "Docker Compose plugin is required
 if [[ ! -f .env ]]; then cp .env.example .env; chmod 600 .env; info "Created .env from .env.example."; else warn "Existing .env detected; preserving unrelated values."; fi
 
 get_env(){
- awk -F= -v key="$1" '$1==key {sub(/^[^=]*=/,""); q=sprintf("%c",39); if (substr($0,1,1)==q || substr($0,1,1)=="\\\"") $0=substr($0,2,length($0)-2); print; exit}' .env
+ awk -F= -v key="$1" '$1==key {sub(/^[^=]*=/,""); q=sprintf("%c",39); if (substr($0,1,1)==q || substr($0,1,1)=="\\\"") $0=substr($0,2,length($0)-2); print; exit}' .env | sed "s/\\\\'/'/g"
 }
 set_env(){
  local key="$1" value="$2" encoded
- encoded="$(printf "%s" "$value" | sed "s/\\\\/\\\\\\\\/g; s/'/\\\\'/g")"
+ encoded="$(printf "%s" "$value" | sed "s/'/\\\\'/g")"
  KEY="$key" VALUE="$encoded" awk '
  BEGIN { key=ENVIRON["KEY"]; value=ENVIRON["VALUE"]; q=sprintf("%c",39); found=0 }
  index($0,key"=")==1 { print key"="q value q; found=1; next }
