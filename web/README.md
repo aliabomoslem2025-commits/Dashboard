@@ -4,15 +4,22 @@ Laravel 12 + Inertia + Vue 3/TypeScript + Vuetify 3 dashboard with a Go mx-core 
 
 ## First run
 
-1. Copy the root .env.example to .env, or run `./start.sh`.
-2. The setup script asks for the internal Synapse URL and the public Matrix server name (for example `example.com`). These are different values; do not use the Docker service hostname as the Matrix server name unless it is genuinely the Matrix ID domain.
-3. Enter the dashboard super-admin username and password. The login page accepts this username (not an email address).
-4. Enter the short Synapse administrator localpart (for example `ali`) and its password. The script constructs `@ali:example.com` from the localpart and Matrix server name.
-5. During mx-core startup, the Go service calls Synapse's `/_matrix/client/v3/login` endpoint, obtains the admin access token, and keeps it only in process memory. If an Admin API call returns HTTP 401, it logs in again and retries that request once. The token is never passed to Laravel/PHP or the browser.
-6. Run `docker compose up --build -d` from the repository root if you are not using the setup script.
-7. Open `http://localhost:8080/login` and sign in with the dashboard username/password.
+Run `sudo ./start.sh` from the repository root. The setup script keeps application dependencies and language compilers inside Docker; no Go, PHP, Node.js, Composer, or other language toolchain is required on the host.
 
-A legacy `SYNAPSE_ADMIN_TOKEN` remains optional for existing deployments. Prefer a dedicated Synapse administrator service account with `SYNAPSE_ADMIN_USER` and `SYNAPSE_ADMIN_PASSWORD`. Keep .env private and never commit it.
+The script automatically:
+
+1. Finds the running Synapse Docker container by its container name or image. If more than one candidate exists, or its name cannot be inferred, it asks only for the container name.
+2. Creates a dedicated Docker bridge network named `dashboard_synapse_link` (or the configured `SYNAPSE_DOCKER_NETWORK`) and attaches the Synapse container to it. It configures mx-core to join that same network and sets the internal Synapse URL to the container's Docker DNS name at port 8008. It does not ask for an internal URL and does not use `localhost`.
+3. Generates persistent internal secrets and service credentials in the private root `.env` file.
+4. Preserves existing values in `.env` when you press Enter.
+
+You only need to provide the public Matrix server name (for example `ghasedchat.ir`), the dashboard super-admin username/password, and the Synapse administrator localpart/password. The script constructs the Matrix ID (for example `@admin:ghasedchat.ir`) from the localpart and public server name.
+
+During mx-core startup, the Go service logs in through Synapse's `/_matrix/client/v3/login` endpoint, obtains the admin access token, and keeps it only in process memory. If an Admin API call returns HTTP 401, it logs in again and retries that request once. The token is never passed to Laravel/PHP or the browser.
+
+Open `http://localhost:8080/login` and sign in with the dashboard username/password. The legacy `SYNAPSE_ADMIN_TOKEN` remains optional for existing deployments; username/password login is preferred. Keep `.env` private and never commit it.
+
+**Network requirements:** Synapse must be running on the same Docker Engine and use a Docker network mode that supports bridge-network attachment. Containers using host networking cannot be attached to the managed network. The script reports this explicitly rather than silently configuring an unreachable address.
 
 ## Optional data sources
 
