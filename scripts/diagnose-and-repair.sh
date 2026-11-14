@@ -146,7 +146,7 @@ if ! dc exec -T web php artisan migrate \
 fi
 
 COLUMN_CHECK="$(dc exec -T web php artisan tinker --execute='
-echo Illuminate\Support\\Facades\\Schema::hasColumn("users", "is_active")
+echo Illuminate\Support\Facades\Schema::hasColumn("users", "is_active")
     ? "IS_ACTIVE_COLUMN_PRESENT"
     : "IS_ACTIVE_COLUMN_MISSING";
 ' 2>&1)" || {
