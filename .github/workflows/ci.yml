@@ -50,7 +50,7 @@ jobs:
           sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=ci-dashboard-password/' .env
           sed -i 's/^CORE_SERVICE_TOKEN=.*/CORE_SERVICE_TOKEN=ci-core-service-token/' .env
           sed -i 's/^SYNAPSE_ADMIN_TOKEN=.*/SYNAPSE_ADMIN_TOKEN=ci-test-token/' .env
-          docker network create dashboard_synapse_link
+          docker network inspect dashboard_synapse_link >/dev/null 2>&1 || docker network create dashboard_synapse_link
       - name: Validate Docker Compose
         run: docker compose config --quiet
       - name: Build containers
@@ -71,4 +71,6 @@ jobs:
           docker compose exec -T mx-core wget -qO- http://127.0.0.1:8081/health
       - name: Stop stack
         if: always()
-        run: docker compose down -v
+        run: |
+          docker compose down -v
+          docker network rm dashboard_synapse_link || true
