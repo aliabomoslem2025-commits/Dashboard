@@ -49,6 +49,8 @@ jobs:
           sed -i 's/^APP_KEY=.*/APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=/' .env
           sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=ci-dashboard-password/' .env
           sed -i 's/^CORE_SERVICE_TOKEN=.*/CORE_SERVICE_TOKEN=ci-core-service-token/' .env
+          sed -i 's/^SYNAPSE_ADMIN_TOKEN=.*/SYNAPSE_ADMIN_TOKEN=ci-test-token/' .env
+          docker network create dashboard_synapse_link
       - name: Validate Docker Compose
         run: docker compose config --quiet
       - name: Build containers
