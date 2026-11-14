@@ -161,31 +161,35 @@ ADMIN_CODE="$(cat <<'PHP'
 $email = env('INITIAL_ADMIN_EMAIL');
 if (!$email) {
     echo 'ADMIN_EMAIL_NOT_CONFIGURED';
-    return;
-}
-$user = App\Models\User::where('email', $email)->first();
-if (!$user) {
-    echo 'ADMIN_ACCOUNT_NOT_FOUND';
-    return;
-}
-$role = Illuminate\Support\Facades\DB::table('roles')
-    ->where('name', 'super_admin')->first();
-if (!$role) {
-    echo 'SUPER_ADMIN_ROLE_NOT_FOUND';
-    return;
-}
-$user->is_active = true;
-if (getenv('REPAIR_RESET_ADMIN_PASSWORD') === '1') {
-    $password = env('INITIAL_ADMIN_PASSWORD');
-    if (!$password || $password === 'change-this-initial-password') {
-        echo 'ADMIN_PASSWORD_NOT_CONFIGURED';
-        return;
+} else {
+    $user = App\Models\User::where('email', $email)->first();
+    if (!$user) {
+        echo 'ADMIN_ACCOUNT_NOT_FOUND';
+    } else {
+        $role = Illuminate\Support\Facades\DB::table('roles')
+            ->where('name', 'super_admin')->first();
+        if (!$role) {
+            echo 'SUPER_ADMIN_ROLE_NOT_FOUND';
+        } else {
+            $user->is_active = true;
+            if (getenv('REPAIR_RESET_ADMIN_PASSWORD') === '1') {
+                $password = env('INITIAL_ADMIN_PASSWORD');
+                if (!$password || $password === 'change-this-initial-password') {
+                    echo 'ADMIN_PASSWORD_NOT_CONFIGURED';
+                } else {
+                    $user->password = $password;
+                    $user->save();
+                    $user->roles()->syncWithoutDetaching([$role->id]);
+                    echo 'ADMIN_REPAIR_OK';
+                }
+            } else {
+                $user->save();
+                $user->roles()->syncWithoutDetaching([$role->id]);
+                echo 'ADMIN_REPAIR_OK';
+            }
+        }
     }
-    $user->password = $password;
 }
-$user->save();
-$user->roles()->syncWithoutDetaching([$role->id]);
-echo 'ADMIN_REPAIR_OK';
 PHP
 )"
 
