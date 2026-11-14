@@ -31,9 +31,10 @@ func main() {
 	}
 	cfg,err:=config.Load(); if err!=nil { log.Fatal().Err(err).Msg("invalid configuration") }
 	logger:=zerolog.New(os.Stdout).With().Timestamp().Logger()
-	client:=synapse.NewWithCredentials(cfg.SynapseBaseURL,cfg.SynapseAdminUser,cfg.SynapseAdminPassword,cfg.SynapseAdminToken,cfg.RequestTimeout)
-	h:=httpapi.New(client,cfg.CoreServiceToken,logger)
 	ctx:=context.Background()
+	client:=synapse.NewWithCredentials(cfg.SynapseBaseURL,cfg.SynapseAdminUser,cfg.SynapseAdminPassword,cfg.SynapseAdminToken,cfg.RequestTimeout)
+	if err:=client.Authenticate(ctx); err!=nil { log.Fatal().Err(err).Msg("Synapse admin authentication failed") }
+	h:=httpapi.New(client,cfg.CoreServiceToken,logger)
 	dsn:=fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",url.QueryEscape(cfg.DBUser),url.QueryEscape(cfg.DBPassword),cfg.DBHost,cfg.DBPort,cfg.DBName)
 	pool,err:=pgxpool.New(ctx,dsn); if err!=nil { log.Fatal().Err(err).Msg("database pool initialization failed") }; defer pool.Close()
 	if err=pool.Ping(ctx); err!=nil { log.Fatal().Err(err).Msg("dashboard database unavailable") }; h.SetDB(pool)
